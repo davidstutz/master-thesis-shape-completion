@@ -1,0 +1,11 @@
++ Initial model    (5000v/9996f)
++ Simplified model (502v/1000f)
+
+
++ Running time
+    Setup      : 0.012 sec
+    QSlim init : 0.016 sec
+    QSlim run  : 0.044 sec
+    Output     : 0.004 sec
+
+    Total      : 0.076

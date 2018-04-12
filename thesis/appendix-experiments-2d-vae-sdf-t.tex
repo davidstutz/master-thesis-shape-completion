@@ -1,0 +1,170 @@
+\begin{figure}
+  \centering
+  \begin{subfigure}[t]{0.31\textwidth}
+    \begin{tikzpicture}
+      \begin{axis}[
+          % https://tex.stackexchange.com/questions/68577/compiling-a-document-with-pgfplots-processing-only-every-x-th-data-point
+          each nth point=8,
+          filter discard warning=false,
+          unbounded coords=discard,
+          % https://tex.stackexchange.com/questions/13816/dimension-too-large-while-plotting-with-pgfplots
+          %restrict y to domain=0:0.1,
+          %restrict x to domain=0:250000,
+          ymin=0,
+          ymax=1,
+          xmin=0,
+          xmax=500000,
+          %xticklabel={
+          %  \pgfmathparse{\tick/1000}
+          %  \pgfmathprintnumber{\pgfmathresult}k
+          %},
+          xtick={0,100000,250000,500000},
+          xticklabels={0,100k,250k,500k},
+          xticklabel style={
+            /pgf/number format/fixed
+          },
+          scaled x ticks=false,
+          yticklabel style={
+            /pgf/number format/fixed
+          },
+          scaled y ticks=false,
+          %x coord trafo/.code={\pgfmathparse{\pgfmathresult/1000}},
+          %xticklabel=\pgfmathprintnumber{\tick}k,
+          width=5.5cm,
+          height=5cm,
+          % https://tex.stackexchange.com/questions/48620/pgfplots-alignment-and-size-of-math-in-legend
+          legend cell align=left,
+        ]
+        
+        % https://tex.stackexchange.com/questions/276869/reading-an-unusual-coordinates-file-in-pgfplots
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ_sdf/easy_5_long/training_bce_occ.txt};
+        \addlegendentry{$\mathcal{L}_{\text{BCE}}$ (train)};
+        
+        %\addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ_sdf/easy_5_long/training_abs_occ.txt};
+        %\addlegendentry{$\Abs$ (train)};
+        
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ_sdf/easy_5_long/validation_bce_occ.txt};
+        \addlegendentry{$\mathcal{L}_{\text{BCE}}$ (val)};
+        
+        %\addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ_sdf/easy_5_long/validation_abs_occ.txt};
+        %\addlegendentry{$\Abs$ (val)};
+        
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ_sdf/easy_5_long/validation_kld.txt};
+        \addlegendentry{$\KL$ (val)};
+        
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ_sdf/easy_5_long/training_kld.txt};
+        \addlegendentry{$\KL$ (train)};
+      \end{axis}
+    \end{tikzpicture}
+  \end{subfigure}\hfill
+  \begin{subfigure}[t]{0.31\textwidth}
+    \begin{tikzpicture}
+      \begin{axis}[
+          % https://tex.stackexchange.com/questions/68577/compiling-a-document-with-pgfplots-processing-only-every-x-th-data-point
+          each nth point=8,
+          filter discard warning=false,
+          unbounded coords=discard,
+          % https://tex.stackexchange.com/questions/13816/dimension-too-large-while-plotting-with-pgfplots
+          %restrict y to domain=0:0.1,
+          %restrict x to domain=0:250000,
+          ymin=0,
+          ymax=2,
+          xmin=0,
+          xmax=500000,
+          %xticklabel={
+          %  \pgfmathparse{\tick/1000}
+          %  \pgfmathprintnumber{\pgfmathresult}k
+          %},
+          xtick={0,100000,250000,500000},
+          xticklabels={0,100k,250k,500k},
+          xticklabel style={
+            /pgf/number format/fixed
+          },
+          scaled x ticks=false,
+          yticklabel style={
+            /pgf/number format/fixed
+          },
+          scaled y ticks=false,
+          %x coord trafo/.code={\pgfmathparse{\pgfmathresult/1000}},
+          %xticklabel=\pgfmathprintnumber{\tick}k,
+          width=5.5cm,
+          height=5cm,
+          % https://tex.stackexchange.com/questions/48620/pgfplots-alignment-and-size-of-math-in-legend
+          legend cell align=left,
+        ]
+        
+        % https://tex.stackexchange.com/questions/276869/reading-an-unusual-coordinates-file-in-pgfplots
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ_sdf/easy_5_long/training_bce_sdf.txt};
+        \addlegendentry{$\mathcal{L}_{\text{BCE}}$ (train)};
+        
+        %\addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ_sdf/easy_5_long/training_abs_sdf.txt};
+        %\addlegendentry{$\Abs$ (train)};
+        
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ_sdf/easy_5_long/validation_bce_sdf.txt};
+        \addlegendentry{$\mathcal{L}_{\text{BCE}}$ (val)};
+        
+        %\addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ_sdf/easy_5_long/validation_abs_sdf.txt};
+        %\addlegendentry{$\Abs$ (val)};
+        
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ_sdf/easy_5_long/validation_kld.txt};
+        \addlegendentry{$\KL$ (val)};
+        
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ_sdf/easy_5_long/training_kld.txt};
+        \addlegendentry{$\KL$ (train)};
+      \end{axis}
+    \end{tikzpicture}
+  \end{subfigure}\hfill
+  \begin{subfigure}[t]{0.31\textwidth}
+    \begin{tikzpicture}
+      \begin{axis}[
+          % https://tex.stackexchange.com/questions/68577/compiling-a-document-with-pgfplots-processing-only-every-x-th-data-point
+          each nth point=4,
+          filter discard warning=false,
+          unbounded coords=discard,
+          % https://tex.stackexchange.com/questions/13816/dimension-too-large-while-plotting-with-pgfplots
+          %restrict y to domain=0:0.1,
+          %restrict x to domain=0:250000,
+          %ymin=0,
+          ymax=0.8,
+          xmin=0,
+          xmax=500000,
+          %xticklabel={
+          %  \pgfmathparse{\tick/1000}
+          %  \pgfmathprintnumber{\pgfmathresult}k
+          %},
+          xtick={0,100000,250000,500000},
+          xticklabels={0,100k,250k,500k},
+          xticklabel style={
+            /pgf/number format/fixed
+          },
+          scaled x ticks=false,
+          yticklabel style={
+            /pgf/number format/fixed
+          },
+          scaled y ticks=false,
+          %x coord trafo/.code={\pgfmathparse{\pgfmathresult/1000}},
+          %xticklabel=\pgfmathprintnumber{\tick}k,
+          width=5.5cm,
+          height=5cm,
+          % https://tex.stackexchange.com/questions/48620/pgfplots-alignment-and-size-of-math-in-legend
+          legend cell align=left,
+        ]
+        
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ_sdf/easy_5_long/validation_mean.txt};
+        \addlegendentry{$\overline{\mu}$ (val)};
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ_sdf/easy_5_long/validation_var.txt};
+        \addlegendentry{$\exp\left(\frac{1}{2}\overline{l}\right)$ (val)};
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ_sdf/easy_5_long/validation_std.txt};
+        \addlegendentry{$|1 - \sqrt{\Var[\mu]}|$ (val)};
+      \end{axis}
+    \end{tikzpicture}
+  \end{subfigure}
+  
+  % TODO short caption
+  \caption{Training curves for a \VAE with $Q = 5$ when training on both
+  occupancy and signed distance functions. In addition to the training loss
+  $\mathcal{L}_{\text{BCE}}$ and the corresponding Kullback-Leibler divergence
+  $\KL$ we monitor the
+  same quanitties as in Figure \ref{fig:experiments-2d-vae-occ-5}.}
+  \label{fig:experiments-2d-vae-occ-sdf-5}
+\end{figure}

@@ -1,0 +1,114 @@
+\chapter{Experiments}
+\label{ch:experiments}
+
+This section presents experimental results regarding the
+approaches to shape completion discussed in Chapter \ref{ch:shape-inference}
+on all datasets introduced in Chapter \ref{ch:data}. Not all of the discussed
+formulations perform equally well. Originally, we first conducted experiments
+on our synthetic 2D rectangle dataset, see Appendix \ref{ch:appendix-experiments}, 
+and found that maximum likelihood (\ML), does not perform well. For clarity, we
+only present experiments on our synthetic 3D datasets, \ie cuboids and cars from ShapeNet
+\cite{ChangFunkhouserGuibasSavarese:2015}, as well as on real data, \ie 
+KITTI \cite{GeigerLenzUrtasun:2012,GeigerLenzStillerUrtasun:2013}.
+Overall, we consider variational auto encoders (\VAEs) for learning shape priors
+and amortized maximum likelihood (\AML) as well as
+extended variational auto-encoders (\EVAEs) for shape completion.
+Due to space constraints, the presented experiments are complemented
+by additional results in Appendix \ref{ch:appendix-experiments}.
+We first discuss the experimental setup before discussing experiments
+on 3D cuboids and cars as well as on KITTI.
+
+\section{Experimental Setup}
+
+% TODO early stopping
+% TODO training
+We implemented all discussed approaches in the Torch\footnote{
+  \url{http://torch.ch/}.
+} deep learning framework. The implementations can be understood as prototypes;
+we did not optimize them with respect to runtime or memory consumption.
+Data pre-processing and generation as well as evaluation was performed in Python
+and C++ as described in Chapter \ref{ch:data}. For all experiments we use a resolution
+of $H \times W \times D = 32^3$ and assume a uniform subdivision of $[0,1]$ into
+$32^3$ voxels for voxelization. As already stated, we derive signed distance functions
+from the corresponding occupancy grids using distance transforms. Details on the
+artificially added noise as well as data augmentation is discussed in the corresponding
+sections.
+In the following we briefly describe the used architectures
+and evaluation metrics.
+
+\subsection{Architecture and Training}
+
+The architectures used for our experiments are kept simple.
+While we experimented with deeper and more complex architectures
+including skip connections, residual units \cite{HeSun:2016} and
+inception-based architectures \cite{SzegedyRabinovich:2015,SzegedyWojna:2016},
+these changes had no significant influence.
+We follow the architectures illustrated in Figures \ref{subfig:experiments-2d-architecture-vae}
+and \ref{fig:shape-inference-evae} for \VAEs and \EVAEs, respectively.
+Encoder and decoder both consist of four stages of convolutional
+layers including batch normalization, $\ReLU$ non-linearity and max
+pooling/nearest neighbor upsampling. We follow discussions
+in the literature \cite{SzegedyWojna:2016}
+and increase the width of the network (\ie the number of channels) whenever decreasing the
+spatial size of the feature maps and use $3 \times 3 \times 3$ convolution kernels
+with zero padding and non-overlapping $2 \times 2 \times 2$ windows for max pooling and
+nearest neighbor upsampling. For $32 \times 32 \times 32$ we thus reduce the spatial
+size to $2 \times 2 \times 2$ before computing the latent code.
+For both \AML and \EVAE, the new encoders, \ie $z(x; w)$ and $q(z | x)$, are trained from
+scratch but follow the architecture of the shape prior. In this case, the corresponding
+generative model $p(y | z)$ is always kept fixed.
+For \AML, we additionally remove the fully connected layer predicting
+the variance of the latent code
+to obtain a deterministic encoder. For \EVAE, the additional decoder $p(x | y)$
+consists of seven convolutional stages including batch normalization and
+$\ReLU$ non-linearities. When predicting occupancy, we use Sigmoid non-linearities;
+for predicting signed distance functions we use the identity, \ie no non-linearity.
+We refer to Appendix \ref{ch:appendix-experiments} for training details.
+
+\subsection{Evaluation}
+\label{sec:experiments-2d-evaluation}
+
+For evaluation we resort to the absolute error between prediction
+and ground truth for both representations, \ie occupancy and signed distance functions.
+For a prediction
+$y \in \mathbb{R}^{H \times W \times D}$ and ground truth
+$y^* \in \mathbb{R}^{H \times W \times D}$ we average over all spatial dimensions:
+\begin{align}
+  \Abs(y, y^*) = \frac{1}{HWD} \sum_{i_1 = 1}^H \sum_{i_2 = 1}^W \sum_{i_3 = 1}^D \left|y_i - y^*_i\right|.
+  \label{eq:experiments-2d-abs}
+\end{align}
+We always report the average on the validation set (or on batches during training).
+We additionally use the absolute error after thresholding the predicted shapes,
+\ie after obtaining proper occupancy grids. For occupancy grids, we threshold 
+the predicted occupancy probabilities at $0.5$ and
+for signed distance functions we threshold at $0$ (here, negative values correspond
+to occupied voxels). These thresholds are also used for our 3D visualizations.
+We refer to the absolute error after thresholding as $\AbsThr$. Overall,
+the absolute error is easy to interpret,
+\eg it provides a clear lower bound (which is $\Abs \geq 0$), and comparable
+across datasets and methods.
+
+Because the discussed approaches try to maximize the likelihood -- or the
+corresponding evidence lower bound -- during training, we would also like
+to consider the negative log-likelihood as measure.
+However, we found the negative log-likelihood to be unsuited for evaluation.
+First, the negative log-likelihood is harder to interpret as it strongly
+depends on the model (\eg \VAE or \EVAE). In particular, besides the
+reconstruction loss, all models also include (possibly weighted) prior terms
+-- \eg in form of Kullback-Leibler divergences or the negative log-likelihood
+corresponding to the prior $p(z)$. Furthermore, for \EVAE, the reconstruction loss does not
+represent the objective we are actually trying to optimize for shape completion.
+Second, across datasets, the negative log-likelihood depends on the number of
+observed voxels. Thus, performance of the proposed shape completion approaches
+cannot be compared to the reconstruction performance of the shape prior -- 
+which would be a natural baseline.
+Third, the negative log-likelihood on Bernoulli observations is inherently skewed
+towards ``unsure'' predictions; meaning that the negative log-likelihood
+prefers unsure predictions over very certain predictions with few mistakes
+(see Appendix \ref{ch:appendix-experiments} for an example). This is
+reasonable during training where we explicitly want to model uncertainty,
+but hinders fair evaluation. Overall, we decided not to report any negative log-likelihoods.
+
+\input{experiments-3d}
+\input{experiments-shapenet}
+\input{experiments-kitti}

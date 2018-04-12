@@ -1,0 +1,98 @@
+\begin{figure}
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+        ybar,
+        % https://tex.stackexchange.com/questions/119887/remove-the-scientific-notation-which-is-unreasonable
+        yticklabel style={
+          /pgf/number format/fixed,
+          /pgf/number format/precision=5
+        },
+        scaled y ticks=false,
+        %enlargelimits=0.15,
+        %legend style={
+        %  at={(1.05,1)},
+        %  anchor=north west,
+        %},
+        % https://tex.stackexchange.com/questions/48620/pgfplots-alignment-and-size-of-math-in-legend
+        legend cell align=left,
+        xtick={
+          1, 2, 3,
+          4, 5, 6,
+          7, 8, 9,
+          10, 11, 12,
+          13, 14
+        },
+        xticklabels={
+          \PPCA\\$Q = 5$, \VAE\\$Q = 5$,
+          \ML \PPCA\\\easy, \ML \PPCA\\\moderate, \ML \PPCA\\\hard,
+          \DL \PPCA\\\easy, \DL \PPCA\\\moderate, \DL \PPCA\\\hard,
+          \ML \VAE\\\easy, \ML \VAE\\\moderate, \ML \VAE\\\hard,
+          \DL \VAE\\\easy, \DL \VAE\\\moderate, \DL \VAE\\\hard,
+        },
+        x tick label style={text width=1.5cm,align=right},
+        ymin=0,
+        ymax=0.2,
+        width=15.5cm,
+        height=4cm,
+        enlarge x limits=0.08,
+        % https://tex.stackexchange.com/questions/271027/pgfplots-how-to-rotate-extra-x-tick-labels
+        x tick label style={
+          rotate=90,
+          anchor=east,
+        },
+      ]
+        
+      % Abs
+      \addplot coordinates {
+        (1, 0.0973753175757)
+        (2, 0.00515391)
+        %
+        (3, 0.137378104094)
+        (4, 0.13795854836)
+        (5, 0.137437428765)
+        %
+        (6, 0.125063671627)
+        (7, 0.125059545346)
+        (8, 0.124713061102)
+        % 
+        (9, 0.11928853)
+        (10, 0.12332883)
+        (11, 0.12160376)
+        %
+        (12, 0.094821)
+        (13, 0.10228066)
+        (14, 0.10594311)
+      };
+      \addlegendentry{\Abs}
+      % AbsThr
+      \addplot coordinates {
+        (1, 0.0449326171875)
+        (2, 0.00318352)
+        %
+        (3, 0.0990908203125)
+        (4, 0.0997822265625)
+        (5, 0.0992470703125)
+        %
+        (6, 0.125014648437)
+        (7, 0.125036132813)
+        (8, 0.1247109375)
+        % 
+        (9, 0.09885333)
+        (10, 0.09952964)
+        (11, 0.10259025)
+        %
+        (12, 0.09455822)
+        (13, 0.10212461)
+        (14, 0.10581035)
+      };
+      \addlegendentry{\AbsThr}
+    \end{axis}
+  \end{tikzpicture}
+  % TODO short caption
+  \caption{Comparison of \ML and \DL using both \PPCA and \VAE priors.
+  We plot the absolute error \Abs and its thresholded verstion \AbsThr
+  for all three difficulties, \ie \easy, \moderate and \hard. The results
+  can also be compared to \AML and \EVAE in Figure \ref{fig:experiments-2d-ml}.}
+  \label{fig:experiments-2d-ml}
+\end{figure}

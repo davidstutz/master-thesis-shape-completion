@@ -1,0 +1,198 @@
+\section{ShapeNet}
+
+ShapeNet \cite{ChangFunkhouserGuibasSavarese:2015} is our first dataset
+comprising realistic objects, in particular cars.
+Later, ShapeNet will also be used to train the shape prior for shape
+completion on KITTI \cite{GeigerLenzUrtasun:2012,GeigerLenzStillerUrtasun:2013}.
+We first manually discarded
+$262$ of the $3514$ simplified meshes that could not be automatically scale
+and rotated to $[0,1]^3$ for further processing. We split the remaining models
+into two training sets -- for prior and inference -- and a validation set
+corresponding to the fractions $0.45:0.45:0.1$. On each model, we apply seven
+random transformations including slight scaling, rotation and
+translation to the meshes; additionally,
+we flip every variant. Overall, we obtain the datasets outlined
+in Table \ref{table:experiments-shapenet-datasets}; examples can be found
+in Appendix \ref{ch:appendix-data}.
+
+\begin{table}
+  \centering
+  {\footnotesize
+  \renewcommand{\arraystretch}{1.1}
+  \begin{tabularx}{\textwidth}{| X | c | c | c |}
+    \hline
+    & \Cub\easy & \Cub\moderate & \Cub\hard\\\hline
+    Training Size (Prior/Inference) & \multicolumn{3}{c|}{$20496/20496$}\\\hline
+    Validation Size & \multicolumn{3}{c|}{$4550$}\\\hline
+    Resolution $H \times W \times D$ & \multicolumn{3}{c|}{$32 \times 32 \times 32$}\\\hline
+    Resolution $2u \times 2v$ & $48 \times 64$ & \multicolumn{2}{c|}{$24 \times 32$}\\\hline
+    Noise $\lambda_{\text{hit}}$ & $0$ & $50$ & $50$\\\hline
+    Noise $\theta_{\text{ignore}}$ & $0$ & $0$ & $0.075$\\\hline
+    Observed Voxels & $0.62\%$ & $0.31\%$ & $0.304\%$\\\hline
+    Free Space Voxels & $3.91\%$ & $3.75\%$ & $4.37\%$\\\hline
+    Observed Voxels & $5.54\%$ & $5.51\%$ & $5.52\%$\\\hline
+  \end{tabularx}
+  }
+  \vskip 6px
+  % TODO short caption
+  \caption{Overview of the generated datasets. We created datasets of three
+  difficulties, \easy, \moderate and \hard, which refer to increased noise
+  and less observations. Details on the parameters are discussed
+  in Section \ref{sec:data-3d}.}
+  \label{table:experiments-shapenet-datasets}
+\end{table}
+
+\subsection{Shape Prior}
+
+\input{experiments-shapenet-vae-t}
+\input{experiments-shapenet-vae-qual}
+
+For the \VAE prior, we again use $Q = 15$.
+From training, we might conclude that the
+ShapeNet dataset is slightly easier to learn. In particular, considering
+Figure \ref{fig:experiments-shapenet-vae-t} we notice that both reconstruction
+and the latent space are learned faster. However, it is hard to say whether
+ShapeNet is inherently easier than the 3D cuboids dataset. On the one hand, we
+only consider slight rotations around all axes; on the other hand,
+the cars show more intra-class variation compared to cuboids. Overall,
+the model achieves an absolute error of $\Abs \approx 0.0073$ and
+$\AbsThr \approx 0.0048$ after thresholding.
+However, we note
+that only $\sim 5.54\%$ of the voxels are occupied in the first place
+(\cf Table \ref{table:experiments-shapenet-datasets}).
+We also notice that the model is less certain considering the random
+samples in Figures \ref{fig:experiments-shapenet-vae-qual-1}
+and \ref{fig:experiments-shapenet-vae-qual-2}, \ie predictions
+appear less sharp. Especially regarding the wheels and the roofs, the model
+has difficulties. Overall, we are satisfied by the obtained performance --
+for experiments on KITTI, we will also have more training data.
+
+On ShapeNet, too, we trained a prior model on both occupancy and signed
+distance functions. For the first time, we also demonstrate why
+we would prefer to work with signed distance functions: it is possible
+to derive triangular meshes at sub-voxel accuracy, \eg
+using the marching cubes algorithm \cite{LorensenCline:1987}\footnote{
+  We use the implementation by Pablo M\'{a}rquez Neila available at
+  \url{https://github.com/pmneila/PyMCubes}.
+}. Again, we use $Q = 15$ to achieve a thresholded absolute error $\AbsThr \approx 0.0048$
+(occupancy) and $\AbsThr \approx 0.0053$ (signed distance function), respectively.
+We show meshes corresponding to random samples in Figure
+\ref{fig:experiments-shapenet-vae-qual-3}. In addition,
+in Figure \ref{fig:experiments-shapenet-vae-qual-1},
+we show both modalities, also to illustrate the involved uncertainty.
+Overall, we find that the random samples are appropriate. While some random samples
+appear rather weird, it is not hard to imagine that they depict cars.
+We also want to stress that the meshes look rather smooth although the
+signed distance functions the model was trained on were originally derived
+from the occupancy grids. We assume this to be the result of the probabilistic
+formulation, \ie of training a \VAE. In particular, the encoder predicts
+a Gaussian distribution where all samples need to result in a proper reconstruction.
+This forces the model the smoothly interpolate between shapes.
+
+\subsection{Amortized Maximum Likelihood}
+
+\input{experiments-shapenet-aml-abs}
+\input{experiments-shapenet-aml-qual}
+
+% TODO zero error in all plots
+For \AML, we follow the procedure of the 3D cuboids dataset; in Figure
+\ref{fig:experiments-shapenet-aml-abs} we plot
+quantitative results for the \easy, \moderate and \hard cases.
+Again, it is important to keep in mind that only roughly $5.54\%$ of the voxels
+are occupied. Thus, results for the \moderate and \hard cases seem quite poor:
+$\Abs \approx 0.023$ and $\Abs \approx 0.027$, respectively.
+This can also be observed when considering qualitative results in
+Figures \ref{fig:experiments-shapenet-aml-qual-1} and
+\ref{fig:experiments-shapenet-aml-qual-2} showing results for the \hard case.
+We found that in many case, the predictions are very uncertain.
+When considering 3D visualizations this is stressed even
+more due to the thresholding. For the \moderate case, in contrast, results
+look more plausible in many cases. We are not sure whether these
+observations can be attributed to the prior model -- which could \eg
+not be trained long enough -- or the variation in the dataset that allows
+these models. It might also be beneficial to enforce the negative log-likelihood
+on the prior $p(z)$ more stringent -- this assumes that the latent space
+is ``more reliable'' close to $0$ than towards the tail of the Gaussian.
+This could prevent shape inference from learning unlikely shapes and
+potentially reduce the influence of weight initialization and stochastic
+training in the first few epochs.
+Overall, we see potential for improvement by tuning hyper-parameters and
+longer training.
+
+When predicting both occupancy and signed distance functions, we are not able
+to achieve a performance comparable to the occupancy only case. Especially
+in the \moderate and \hard cases, performance drops significantly from
+$\Abs \approx 0.026$ to $\Abs \approx 0.032$ or higher (on occupancy).
+We cannot say whether this is a drawback of
+signed distance functions as modality, due to the shape prior or because of
+the training procedure. In contrast to the occupancy only case, we did not
+spend as much time tuning parameters. An exact comparison can be found in 
+Figure \ref{fig:experiments-shapenet-aml-abs} while we show qualitative
+results in Figures \ref{fig:experiments-shapenet-aml-qual-3}
+and \ref{fig:experiments-shapenet-aml-qual-4}.
+Considering the qualitative results we can, however, appreciate the
+smoothing effect on the prior; the meshed predictions look very appealing -- 
+in contrast to the meshed targets. Here it gets apparent that our signed
+distance functions are derived from the occupancy grids. We can also
+see the drop in performance; some predictions do not match the targets as
+well as before; especially as \AML consistently underestimates the size
+of the cars. The problems with predicting signed distance functions seem
+to be consistent across datasets and models; overall, we believe that
+an alternative representation might be easier to learn, \eg normalized,
+discretized or just replacing the logarithm.
+
+\subsection{Extended Variational Auto Encoder}
+
+Although \EVAE performed slightly worse than \AML on the 3D cuboids dataset,
+we still include quantitative results in Figure \ref{fig:experiments-shapenet-aml-abs}.
+On ShapeNet, the performance difference between \AML and \EVAE becomes more pronounced.
+However, we also want to note that, again, we did not put as much effort into
+tuning parameters and training compared to \AML. Specifically, we suspect that
+the weight on the Kullback-Leibler divergences may make a significant
+difference. Unfortunately, we were unable to investigate this problem
+further. Still, we showed, that the framework is also applicable to
+real-world objects -- even if only the \easy case results in appropriate performance.
+%We provide
+%qualitative results in the appendix.
+
+\subsection{Supervised Baseline}
+\label{sec:experiments-shapenet-supervised-baseline}
+
+For ShapeNet, we also prepared a supervised baseline. For a fair comparison,
+we used the shape prior architecture with $Q = 15$, to learn the mapping
+$x_n \mapsto y_n^*$ directly from the
+synthetic data. We did not notice a significant difference between training the
+exact same architecture versus removing the
+Kullback-Leibler divergence and the corresponding reparameterization layer; for fairness,
+we followed the former approach. We considered the \hard case only. Later,
+we will also evaluate how well the learned model generalizes to KITTI.
+Figure \ref{fig:experiments-shapenet-aml-abs}
+shows that supervision is able to get closer to the reconstruction performance
+of the shape prior, with an
+absolute error of roughly $\Abs \approx 0.014$ thereby outperforming all other
+presented approaches for shape completion. Qualitative results are shown in Figures
+\ref{fig:experiments-shapenet-aml-qual-1} and \ref{fig:experiments-shapenet-aml-qual-2}
+in comparison with \AML. Overall,
+the supervised baseline could potentially also outperform \AML on KITTI, given
+that the used observation model resembles KITTI's Velodyne sensor closely
+enough. Overall, it is not surprising that the supervised baseline outperforms
+\AML considering that \AML only uses a fraction, in particular $4.06\%$ in the
+\moderate case, of the information during training.
+
+\subsection{Discussion}
+
+Overall, the results obtained on ShapeNet are not convincing in all cases. Especially
+on \moderate and \hard difficulty, shape completion appears to be significantly
+more challenging than on the 3D cuboids dataset. Unfortunately, limited time prevented us
+from conducting more experiments regarding both prior and shape completion, \eg to investigate
+the influence of training time, architectural changes and hyper-parameters. 
+Still, the presented experiments show that the proposed approach, especially \AML
+but also \EVAE in a limited setting,
+are able to learn shape completion under difficult conditions.
+Although we were not able to reach supervised performance, it is still surprising
+what is possible under weak supervision when relying on strong shape priors.
+%On KITTI,
+%we also hope that a larger training set for the prior (\ie both training sets from
+%Table \ref{table:experiments-shapenet-datasets}) will improve results.
+We discuss possible future experiments
+based on the above observations in detail in in Section \ref{sec:future-work}.

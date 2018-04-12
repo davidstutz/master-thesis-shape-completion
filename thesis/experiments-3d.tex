@@ -1,0 +1,205 @@
+\section{3D Example}
+\label{sec:experiments-3d}
+
+% TODO nicer tables
+\begin{table}
+  \centering
+  {\footnotesize
+  \renewcommand{\arraystretch}{1.1}
+  \begin{tabularx}{\textwidth}{| X | c | c | c |}
+    \hline
+    & \Cub\easy & \Cub\moderate & \Cub\hard\\\hline
+    Training Size (Prior/Inference) & \multicolumn{3}{c|}{$10000/10000$}\\\hline
+    Validation Size & \multicolumn{3}{c|}{$1000$}\\\hline
+    Resolution $H \times W \times D$ & \multicolumn{3}{c|}{$32 \times 32 \times 32$}\\\hline
+    Resolution $2u \times 2v$ & $48 \times 64$ & \multicolumn{2}{c|}{$24 \times 32$}\\\hline
+    Noise $\lambda_{\text{hit}}$ & $0$ & $50$ & $50$\\\hline
+    Noise $\theta_{\text{ignore}}$ & $0$ & $0$ & $0.1$\\\hline
+    Observed Voxels (Inference Training Set) & $1.43\%$ & $0.53\%$ & $0.48\%$\\\hline
+    Free Space Voxels (Inference Training Set) & $10.73\%$ & $7.07\%$ & $8.32\%$\\\hline
+    Occupied Voxels (Inference Training Set) & $16.24\%$ & $16.17\%$ & $16.21\%$\\\hline
+  \end{tabularx}
+  }
+  \vskip 6px
+  % TODO short caption
+  \caption{Overview of the generated datasets. We created datasets of three
+  difficulties, \easy, \moderate and \hard, which refer to increased noise
+  and less observations. Details on the parameters are discussed
+  in Section \ref{sec:data-3d}. Additionally, we report statistics such as the
+  percentage of observed voxels, free space voxels and occupied voxels
+  (of the ground truth shapes) over the training set used for shape inference.}
+  \label{table:experiments-3d-datasets}
+\end{table}
+
+We start with experiments on our synthetic 3D cuboids dataset.
+Here, we are able to present both quantitative and qualitative results
+on a controlled, simple dataset. To this end, we created datasets of three difficulties
+following the procedure in Chapter \ref{ch:data}:
+\easy, \hard and \moderate with details in Table \ref{table:experiments-3d-datasets}.
+With rising difficulty, less observations are provided and the underlying noise increases.
+The \hard case is supposed to represent real conditions as found on KITTI.
+Examples for all three difficulties can be found in Appendix \ref{ch:data}. In
+Table \ref{table:experiments-3d-datasets} we additionally report some
+basic statistics, \eg the percentage of occupied voxels to give an impression
+of how trivial predictions would perform or the percentage of observed
+and free space voxels to indicate what level of supervision is available.
+We start with discussing the \VAE shape prior before proceeding to the problem
+of shape completion. As we found \ML to perform poorly in the 2D case,
+we exclude experiments on 3D data.
+
+\subsection{Shape Prior}
+
+\input{experiments-3d-vae-t}
+\input{experiments-3d-vae-qual}
+
+For the shape prior, the size $Q$ of the latent space is crucial. We found that in
+practice a suitable size can be determined by monitoring the training progress
+of the \VAE for different sizes $Q$. For the following discussion, we determined
+$Q = 15$ to be suitable and the corresponding training curves are shown
+in Figure \ref{fig:experiments-3d-vae-t}.
+%A comparison to $Q = 5$ and $Q = 30$ can be found in the appendix.
+An important cue to judge $Q$
+is the latent space, \ie whether learning the latent space converged. This is
+usually be indicated by low predicted log-variances and the statistics of the predicted
+means slowly resembling a unit Gaussian (\ie zero mean and unit variance).
+Additionally, the obtained reconstruction error can be used as indicator. For $Q = 5$,
+for example, the absolute error does not fall below $ \Abs \approx 0.04$.
+Considering that, only
+$~16.2\%$ of the voxels are occupied (\cf Table \ref{table:experiments-3d-datasets})
+this error is still
+very large. For $Q = 15$ and above, in contrast, the error reduces to $\Abs \approx 0.0054$ or lower.
+Finally, we also consider random samples utilizing the generative model.
+As can be seen in Figures \ref{fig:experiments-3d-vae-qual-1}
+and \ref{fig:experiments-3d-vae-qual-2}, the random samples
+look appropriate and mostly resemble cuboids.
+Note that due to rotations, the cuboids might not appear rectangular when
+showing horizontal slices of the corresponding volumes.
+Overall, we did not exploit all possibilities regarding hyper parameters and
+training time, but are satisfied with the obtained performance
+using $Q = 15$.
+
+On 2D examples, we realized that predicting both occupancy and signed
+distance functions is beneficial compared to predicting signed distance functions
+only. On 3D, we make a similar observation and show qualitative results
+in Figure \ref{fig:experiments-3d-vae-qual-1}. Again, we use $Q = 15$,
+and achieve an absolute error of $\Abs \approx 0.0064$ for occupancy and
+$\Abs \approx 0.071$ for signed distance functions. After thresholding the
+predicted representations to obtain occupancy grids (at $0.5$ for occupancy
+probabilities and at $0$ for signed distance functions), the absolute error
+drops to $\AbsThr \approx 0.0045$ and $\AbsThr \approx 0.0053$, respectively.
+This means that both representations can be used to derive low-error
+occupancy grids. Random samples also look suitable and clearly depict cuboids in
+most cases; however, we find the samples to be slightly less sharp compared to
+predicting occupancy only.
+%For brevity, we include further qualitative results
+%as well as training curves in Appendix \ref{ch:appendix-experiments}.
+
+\subsection{Amortized Maximum Likelihood}
+\label{sec:experiments-3d-aml}
+
+\input{experiments-3d-aml-t}
+\input{experiments-3d-aml-abs}
+\input{experiments-3d-aml-qual}
+
+For \AML, we mainly present experiments on \moderate and \hard difficulties
+as we found that \AML performs very well on \moderate difficulty.
+%However,
+%we provide additionally qualitative results for all cases in the appendix.
+First of all, we note that the weight $\kappa$ on the negative log-likelihood of the prior, \ie
+$- \ln p(z)$, is crucial for successful training. 
+Figure \ref{fig:experiments-3d-aml-t} shows training curves for the \moderate case
+when using $\kappa = 15$. Overall, the network achieves an absolute error of
+$\Abs \approx 0.036$. If the weight $\kappa$ would not be large enough,
+the network would quickly deviate from the unit Gaussian prior.
+This can be observed
+when monitoring the latent space, \ie the observed statistics $\sqrt{\Var[\mu]}$ and $\overline{\mu}$
+deviate significantly from the unit Gaussian prior. If $\kappa$ is chosen too large, the prior
+``collapses'', \ie $\sqrt{\Var[\mu]}$ approaches zero. If weighted
+correctly, the prior takes care of enforcing the unit Gaussian in the first few iterations.
+We found that matching the prior becomes important as a big portion of learning
+takes place in the early iterations. This can also be seen in Figure
+\ref{fig:experiments-3d-aml-t}; it seems that \AML needs only few epochs to
+``learn'' inference.
+Experimentally, we found that $\kappa = 15$ performs
+well for the \moderate case, however, $\kappa = 30$ is necessary for the \hard case.
+Unfortunately, we did not find any rule of thumb for setting $\kappa$ but needed to
+resort to trial and error.
+Overall, we find that training \AML gets is tricky in 3D;
+experimenting with hyper-parameters becomes more important.
+% TODO anneal \kappa
+
+Figure \ref{fig:experiments-3d-aml-abs} compares prior performance with
+the obtained absolute errors on \easy, \moderate and \hard difficulties.
+Qualitative results for the \moderate case can be found
+in Figure \ref{fig:experiments-3d-aml-qual-1}. \AML performs reasonably well
+on \moderate difficulty. However, we found performance to be strongly
+influenced by the noisy free space observations in the \hard case. Especially
+the ignored rays cause problems. After closer investigation we
+resorted to a simple approach to avoid these difficulties: we weight observations
+$x_i = 0$ corresponding to free space by
+\begin{align}
+  \rho_i = 1 - \frac{\sum_{m = 1}^M y_{m,i}}{m},\quad \mathcal{Y} = \{y_m\}_{m = 1}^M \subseteq \{0,1\}^R.
+  \label{eq:experiments-3d-weights}
+\end{align}
+The weight $\rho_i$ can be interpreted as free space statistics, \ie the likelihood that
+voxel $i$ is not occupied over the prior training set. This concept is also illustrated
+in Figure \ref{fig:experiments-3d-aml-qual-1}. We additionally experimented with using
+$\rho_i^\lambda$, $\lambda \in (0,1)$ and determined $\lambda = 0.5$ to work well.
+As a result, we are able to obtain nearly equal performance on \moderate
+and \hard difficulties. Overall, this discussion also shows
+the influence of individually weighting voxels in order to cope noisy observations.
+    
+Figure \ref{fig:experiments-3d-aml-abs} also shows results obtained
+when predicting both occupancy and signed distance functions. The corresponding
+qualitative results for the \hard can be found in Figure
+\ref{fig:experiments-3d-aml-qual-2}. We found that in both the \moderate and
+the \hard case, the predicted shapes are slightly larger than the target
+shapes. Specifically, the model appears to resort to
+``standard'', blob-like shapes which be close to a mean shape.
+We already now that learning and predicting signed distance
+functions is harder compared to occupancy only. The blob-like predictions
+could also be explained by choosing the weight $\kappa$ too large, implicitly
+constraining the model to shapes close to the mean shape. 
+Unfortunately, an extensive investigation and hyper-parameter tuning was not
+possible within the limited time-frame of this thesis.
+
+\subsection{Extended Variational Auto-Encoder}
+
+For the \EVAE, we obtain similar results as presented above, see
+Figure \ref{fig:experiments-3d-aml-abs}. For example,
+in the \easy case, an absolute error \Abs of $\sim 0.034$ is achieved --
+this is only slightly worse than \AML. For the \moderate and \hard cases,
+errors of $\sim 0.042$ and $\sim 0.057$ are achieved. This is worse than
+\AML; however, we also note that we did not spend as much time
+tuning hyper parameters and we might have under-estimating
+required training time which is more relevant for the \EVAE as it includes
+significantly more parameters.
+We also note that the observed performance is in contrast to the
+2D case, see Appendix \ref{ch:appendix-experiments}, where \EVAE slightly
+outperformed \AML which also indicates that training time is relevant
+-- in the 2D case, it seems, we allocated enough training time.
+For the \hard case, examples can be found in Figure \ref{fig:experiments-3d-aml-qual-1}.
+We can also see that \AML and \EVAE give very similar results, apart from the
+fact that \EVAE slightly under-estimates the true cuboids' size. However, this is not surprising
+as both approaches optimize a similar objective, only that it is wrapped in a Kullback-Leibler
+divergence in the case of \EVAE. We intend to perform further experiments regarding
+\EVAE in future work; however, given the provided evidence, we prefer \AML
+due to lower training times and slightly better performance.
+
+\subsection{Discussion}
+
+First of all, we find that both the shape prior, \ie a \VAE, as well as the shape inference
+models are hard to train on 3D data. Tuning hyper-parameters is important and
+made difficult by the long training times, even in low resolutions such as $32^3$.
+Specifically, we found that enforcing the shape prior is crucial. For \AML, for example,
+we increased the weight on the negative log-likelihood $- \ln p(z)$ in order to obtain
+reasonable results. Additionally, to cope with the \hard case, we weighted
+free space voxels individually by their likelihood to actually correspond to free space
+on the prior training set.
+Overall, we demonstrated that
+\VAEs are able to learn appropriate shape priors using both occupancy and signed distance functions.
+Regarding shape completion, we showed that both \AML and \EVAE give reasonable
+performance while \AML performs slightly better than \EVAE.
+We also found that \AML and \EVAE give very similar results -- which is reasonable
+considering the theoretic background. In the end, we are satisfied by the presented experiments
+and proceed to the more complicated ShapeNet dataset.

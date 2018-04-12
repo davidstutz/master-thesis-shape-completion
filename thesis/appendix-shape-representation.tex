@@ -1,0 +1,55 @@
+\chapter{Shape Representation}
+\label{ch:appendix-shape-representation}
+
+To complement the rough notion of watertight meshes as closed surfaces with
+clearly defined interior and exterior, we provide the corresponding mathematical
+background for clarification.
+
+\section{Watertight Meshes}
+
+We follow
+\cite[Section~1.3]{BotschKobbelt:2010}, \cite{Edelsbrunner:2003}
+and \cite[Chapter~3]{Giblin:2010} to first introduce the necessary
+terminology.
+
+% TODO illustrations
+\begin{definition}
+  \begin{enumerate}[(i)]
+    \item A self intersection is an intersection of two faces of the same mesh.
+    \vskip -4px
+    \item A non-manifold edge has more than two incident faces.
+    \vskip -4px
+    \item The star of a vertex is the union of all its incident faces.
+    \vskip -4px
+    \item A non-manifold vertex is a vertex where the corresponding star is not
+    connected when removing the vertex.
+    \vskip -4px
+    \item A mesh is 2-manifold if it does contain neither self intersections, nor
+    non-manifold edges, nor non-manifold vertices.
+  \end{enumerate}
+\end{definition}
+
+% TODO cite
+Illustrations of these somewhat abstract definitions can be found in
+\cite[Figure~1.6]{BotschKobbelt:2010}. In general, 2-manifold meshes are
+preferable to arbitrary meshes as many
+algorithms and applications are not applicable to non-manifold meshes \cite{BotschKobbelt:2010}.
+In our case, however, the definition of 2-manifold meshes is only motivated by
+the need to formally define watertight meshes (which are sometimes also referred
+to as closed meshes).
+Intuitively, the only constraint missing from 2-manifold meshes is a notion
+of ``closedness'', \ie a clear interior and exterior.
+This becomes apparent when considering the definition
+of a non-manifold edge -- which also allows edges with only one incident faces,
+so-called boundary edges. 
+
+\begin{definition}
+  A 2-manifold mesh is called watertight if each edge has exactly two incident
+  faces, \ie no boundary edges exist.
+\end{definition}
+
+The above definitions, while appearing abstract, are also useful in practice.
+In software, \eg in MeshLab\footnote{
+  \url{http://www.meshlab.net/}.
+}, it is easy to identify and label non-manifold vertices, edges as well as
+boundary edges to help design and work with triangular meshes.

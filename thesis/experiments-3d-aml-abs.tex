@@ -1,0 +1,129 @@
+\begin{figure}
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+        ybar stacked,
+        % https://tex.stackexchange.com/questions/119887/remove-the-scientific-notation-which-is-unreasonable
+        yticklabel style={
+          /pgf/number format/fixed,
+          /pgf/number format/precision=5
+        },
+        scaled y ticks=false,
+        %enlargelimits=0.15,
+        legend style={
+          at={(1.01,1)},
+          anchor=north west,
+        },
+        % https://tex.stackexchange.com/questions/48620/pgfplots-alignment-and-size-of-math-in-legend
+        legend cell align=left,
+        xtick={
+          1, 2,
+          3, 4, 5,
+          6, 7, 8,
+          9, 10, 11
+        },
+        xticklabels={
+          \VAE, \VAE occ+sdf,
+          \AML\\\easy, \AML\\\moderate, \AML \\\hard,
+          \EVAE\\\easy, \EVAE\\\moderate, \EVAE\\\hard,
+          \AML occ+sdf\\\easy, \AML occ+sdf\\\moderate, \AML occ+sdf\\\hard
+        },
+        x tick label style={text width=1.5cm,align=right},
+        ymin=0,
+        width=12.5cm,
+        height=4cm,
+        % https://tex.stackexchange.com/questions/271027/pgfplots-how-to-rotate-extra-x-tick-labels
+        x tick label style={
+          rotate=90,
+          anchor=east,
+        },
+        enlarge x limits=0.05,
+        % https://tex.stackexchange.com/questions/47882/formatting-a-pgfplot-graph-thicker-bars-and-total-width
+        %bar width=8,
+      ]
+        
+      % AbsThr
+      \addplot +[bar shift=-.2cm] coordinates {
+        (1, 0.00384198)
+        (2, 0.00453785)
+        (3, 0.03217211)
+        (4, 0.03567748)
+        (5, 0.04434539)
+        %
+        (6, 0.03876815)
+        (7, 0.05154616)
+        (8, 0.07254225)
+        %
+        (9, 0.04437874)
+        (10, 0.05507257)
+        (11, 0.0500495)
+      };
+      \addlegendentry{\AbsThr (occ)}
+      % Abs
+      \addplot +[bar shift=-.2cm] coordinates {
+        (1, 0.00155) % 0.00539829)
+        (2, 0.001953) % 0.00649281)
+        (3, 0.000155) % 0.03232507)
+        (4, 0.000218) % 0.03588854)
+        (5, 0.000445) % 0.04479165)
+        %
+        (6, 0.00072) % 0.03942102)
+        (7, 0.0003) % 0.05189751)
+        (8, 0.00031) % 0.07285957)
+        %
+        (9, 0.0002) % 0.04457945)
+        (10, 0.00016) % 0.05523896)
+        (11, 0.00019) % 0.05023721)
+      };
+      \addlegendentry{\Abs (occ)}
+      
+      % --
+      \resetelevenstackedplots
+      
+      % AbsThr
+      \addplot +[bar shift=+.2cm] coordinates {
+        (1, 0)
+        (2, 0.00534606)
+        (3, 0)
+        (4, 0)
+        (5, 0)
+        %
+        (6, 0)
+        (7, 0)
+        (8, 0)
+        %
+        (9, 0.04459624)
+        (10, 0.05582422)
+        (11, 0.05130592)
+      };
+      \addlegendentry{\AbsThr (sdf)}
+      % Abs
+      \addplot +[bar shift=+.2cm] coordinates {
+        (1, 0)
+        (2, 0.06582) % 0.07112682)
+        (3, 0)
+        (4, 0)
+        (5, 0)
+        %
+        (6, 0)
+        (7, 0)
+        (8, 0)
+        %
+        (9, 0.17411) % 0.21871304)
+        (10, 0.21636) % 0.27216289)
+        (11, 0.2225) % 0.27388566)
+      };
+      \addlegendentry{\Abs (sdf)}
+    \end{axis}
+  \end{tikzpicture}
+  
+  % TODO short caption
+  \caption{Absolute error \Abs and its thresholded variant \AbsThr, \ie
+  the absolute error on thresholded predictions,
+  for a comparison between the \VAE prior, \AML and \EVAE on occupancy only
+  and \AML predicting both occupancy and signed distance functions (indicated as occ+sdf).
+  In each case, the left bar represents results on occupancy; the right bar
+  corresponds to results on signed distance functions (if applicable). The comparison
+  to the \VAE prior provides a possible lower bound on the performance.}
+  \label{fig:experiments-3d-aml-abs}
+\end{figure}

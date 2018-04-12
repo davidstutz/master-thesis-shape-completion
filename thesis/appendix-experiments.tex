@@ -1,0 +1,576 @@
+\chapter{Experiments}
+\label{ch:appendix-experiments}
+
+In this chapter, we present additional experiments, further qualitative examples
+as well as details regarding training and evaluation.
+
+\section{Training Details}
+
+For training, we use stochastic gradient descent with momentum and weight decay.
+The initial learning rate was experimentally determined to be $\gamma^{(0)} = 10^{-6}$
+for most experiments; for experiments involving signed distance functions the initial
+learning rate might be slightly slower, \eg $\gamma^{(0)} = 5\cdot10^{-7}$ -- 
+on the 2D dataset we even reduced it to $\gamma^{(0)} = 5\cdot10^{-8}$ when training
+signed distance functions only.
+It is then reduced every $T_{\gamma} = 500$ iterations using $\alpha_{\gamma} = 0.95$.
+The minimum learning rate $\gamma_{\min} = 10^{-15}$ is usually only reached
+for training the shape prior, which involves significantly more epochs than
+training the inference models. We usually use a momentum of $\beta^{(0)} = 0.5$
+and increase it every $T_{\beta} = T_{\alpha} = 500$ iterations with a factor
+$\alpha_{\beta} = 1.025$ until $\beta_{\max} = 0.9$ is reached. In 2D,
+because training is easier, we increase the momentum term using
+$\alpha_{\beta} = 1.05$ instead. For weight decay,
+we usually use a weight of $\kappa = 10^{-6}$. We trained the shape prior to
+up to $250$ epochs; and inference models usually up to $25$ epochs -- except
+on KITTI \cite{GeigerLenzUrtasun:2012,GeigerLenzStillerUrtasun:2013}
+where significantly more epochs are used as the dataset is very small.
+We always present results corresponding to a model trained for the optimal
+number of iterations determined using early stopping.
+We found that weight decay has negligible influence on the obtained performance,
+but slightly helps training. Additionally, the initial learning
+rate has a significant effect when chosen
+too large -- in the extreme case, training diverges in the first few iterations.
+Using a momentum term helps in all cases and gradually reducing the learning
+rate is necessary to obtain good results. We always use Xavier initialization
+\cite{GlorotBengio:2010}. We also experimented with
+alternative optimization algorithms, \eg ADAM \cite{KingmaBa:2014}, but
+found standard stochastic gradient descent to work most reliably.
+
+\section{Evaluation}
+\label{sec:appendix-experiments-evaluation}
+
+We claimed that the negative log-likelihood is unsuited for evaluation
+partly because it favors ``unsure'' predictions, \ie occupancy probabilities
+close to $0.5$ over very certain predictions with few mistakes. The following
+example is intended to illustrate this:
+
+\begin{example}
+  We consider a $R$-dimensional binary volume representing a shape. Let 
+  $y \in [0,1]^R$ the predicted shape; let $y^* \in \{0,1\}^R$ be the true shape.
+  Assuming $y$ fits $y^*$ perfectly, the negative log-likelihood is zero.
+  Flipping the prediction of one $y_i = 1$ to $y_i \approx 0.0001$ (due to
+  numerical stability) changes the negative log likelihood to $\sim 9.21$.
+  Then, we can set
+  $\frac{-\ln 0.0001}{- \ln 0.5} \approx \frac{9.21}{0.693} \approx 9.966$
+  of $y^*$'s occupied voxels to $0.5$ and the negative log-likelihood will not exceed $9.21$.
+  In practice, this means that an ``unsure'' model predicting an occupancy probability
+  of $0.5$ for many pixels will have a lower negative log-likelihood
+  than a nearly perfect prediction with few but very certain mistakes.
+\end{example}
+
+\section{2D Example}
+\label{sec:appendix-experiments-2d}
+
+% TODO auto-encoders or auto-encoder
+We originally developed the 2D dataset to understand how probabilistic PCA (\PPCA) and variational
+auto-encoders (\VAEs) can learn shape priors; and to provide a proof of concept
+that the methods for shape inference introduced in Chapter \ref{ch:shape-inference}
+as well as in Appendix \ref{ch:appendix-shape-inference}
+are applicable. We also intend to present a short quantitative comparison to
+identify well-performing approaches in order to proceed to the 3D datasets as 
+well as KITTI.
+
+% TODO nicer tables
+\begin{table}
+  \centering
+  {\footnotesize
+  \renewcommand{\arraystretch}{1.1}
+  \begin{tabularx}{\textwidth}{| X | c | c | c |}
+    \hline
+    & \Rect\easy & \Rect\moderate & \Rect\hard\\\hline
+    Training Size (Prior/Inference) & \multicolumn{3}{c|}{$10000/10000$}\\\hline
+    Validation Size & \multicolumn{3}{c|}{$1000$}\\\hline
+    Resolution $H \times W$ & \multicolumn{3}{c|}{$32 \times 32$}\\\hline
+    Resolution $2u$ & $64$ & \multicolumn{2}{c|}{$32$}\\\hline
+    Noise $\theta_{\text{hit}}$ & $1$ & $0.75$ & $0.75$\\\hline
+    Noise $\theta_{\text{ignore}}$ & $0$ & $0$ & $0.1$\\\hline
+    Observed Voxels (Inference Training Set) & $1.79\%$ & $1.09\%$ & $0.97\%$\\\hline
+    Free Space Voxels (Inference Training Set) & $13.63\%$ & $10.99\%$ & $16.59\%$\\\hline
+    Occupied Voxels (Inference Training Set) & $29.6\%$ & $29.57\%$ & $29.31\%$\\\hline
+  \end{tabularx}
+  }
+  \vskip 6px
+  % TODO short caption
+  \caption{Overview of the generated datasets. We created datasets of three
+  difficulties, \easy, \moderate and \hard, which refer to increased noise
+  and less observations. Additionally, we report statistics such as the
+  percentage of observed voxels, free space voxels and occupied voxels
+  (of the ground truth shapes) over the training set used for shape inference.}
+  \label{table:experiments-2d-datasets}
+\end{table}
+
+For all experiments regarding
+shape completion, we constructed three datasets of varying difficulties:
+\easy, \hard and \moderate with details in Table \ref{table:experiments-2d-datasets}.
+In all three cases, we always use partial free space
+as this will also be the case on KITTI.
+With rising difficulty, less observations are provided and the underlying
+noise increases. The \hard case is supposed to represent real conditions
+as found on KITTI.
+
+The experimental setup follows Chapter \ref{ch:experiments}. Additionally,
+\PPCA was implemented using SciPy's sparse SVD implementation\footnote{
+  \url{https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.svds.html}.
+} and $\sigma^2$ from Definition \ref{def:shape-prior-ppca} was approximated
+using the first $\rho \cdot HW$ eigenvalues of the data matrix; here, $\rho$
+is the fraction of pixels occupied over the whole training set. The 
+$Q$ largest eigenvalues are chosen to determine the projection $U$ and the
+remaining ones are used to compute $\sigma^2$. We found this heuristic to work
+well in both 2D and 3D. In the 2D case, $\rho \approx 0.297$ and for $H \times W = 32 \times 32$,
+we have $\rho HW \approx 302$.
+
+\subsection{Shape Prior}
+% TODO goal: understand how shapes can be modeled
+% - how large should code size be
+% - how large should the network be
+% - what reconstruction error can be expected
+% - how much data do we need
+
+First, we want to understand how well \PPCA and \VAEs can learn a shape prior
+-- especially regarding the latent space, \eg its dimensionality and the
+quality of random samples.
+For \VAEs we are additionally interested in the two introduced representations
+-- occupancy and signed distance functions.
+
+\subsubsection{Probabilistic PCA}
+
+\input{appendix-experiments-2d-ppca-abs}
+\input{appendix-experiments-2d-ppca-qual}
+
+In Figure \ref{fig:experiments-2d-ppca}, we first consider \PPCA to learn shape priors
+to understand the influence of the size of the latent space, \ie $Q$.
+Obviously, increasing $Q$ leads to better reconstruction errors.
+As comparison, roughly $29.7$ percentage of
+pixels are occupied, \ie predicting all zero would result in an error of
+approximately $\Abs = \AbsThr \approx 0.297$.  The corresponding
+qualitative results in Figure \ref{fig:experiments-2d-ppca-qual}, for $Q = 2$, show
+what \PPCA actually does: it uses principal directions to approximate
+its input. Increasing $Q$ allows \PPCA to capture more variation, leading
+to better reconstructions but also allowing more variation in random samples.
+For shape inference, we require that the latent space holds only ``reasonable''
+shapes. Taking this into account $Q = 5$ seems to be
+a reasonable trade-off between reconstruction error and appropriate samples.
+
+\subsubsection{Variational Auto Encoder}
+\label{sec:experiments-2d-vae-prior}
+
+% TODO coherent colors!
+\input{appendix-experiments-2d-vae-t}
+\input{appendix-experiments-2d-vae-qual}
+
+Next, we consider the \VAE equivalent using occupancy as shape representation.
+First of all, we discuss training; Figure \ref{fig:experiments-2d-vae-occ-5}
+shows absolute error \Abs on the validation set for $Q = 5$.
+We additionally monitor the predicted means through $\Var[\mu]$ and $\overline{\mu}$
+as well as the predicted standard deviations, \ie $\exp(\frac{1}{2}\overline{l})$.
+As can be seen, network training seems to stagnate after around $100k$
+iterations according to the reconstruction error.
+However, the latent space is still being learned, especially regarding the actually
+observed standard deviation $\Var[\mu]$ which still deviates significantly from $1$,
+\ie $|1 - \sqrt{\Var[\mu]}|$ deviates from $0$.
+Overall, \VAEs usually need to be trained longer than the reconstruction loss suggests.
+% TODO wording, line of thought
+
+% TODO Q = 2 plots appendix
+Monitoring the latent space also helps to identify an appropriate
+size $Q$ of the latent space. To this end, Figure \ref{fig:experiments-2d-vae-occ-5}
+also shows training of the same network for $Q = 25$. First, we notice that the
+predicted standard deviations do not approach zero anymore. The latent
+space is larger for $Q = 25$, however, the size of the dataset did not increase.
+Thus, the network needs to ``fill'' a larger latent space with the same number of samples;
+thus, the predicted standard deviations are higher. Second, the actually measured
+standard deviation does collapse to around $\sim 0.55$; this means that
+the unit Gaussian prior is not met exactly. Both phenomena indicate that the latent
+space is too large. Similar observations can be made for smaller latent spaces.
+Using $Q = 5$ for the following experiments is also supported by
+the random samples in Figure \ref{fig:experiments-2d-vae-occ-random}.
+For $Q \in \{2, 5, 10, 25\}$ we compare the reconstruction performance with
+\PPCA in Figure \ref{fig:experiments-2d-ppca}.
+
+\input{appendix-experiments-2d-vae-sdf-t}
+
+The above observations can be confirmed when training a \VAE on a signed
+distance function representation. Again, we use $Q = 5$ and observe that
+signed distance functions are harder to learn. Therefore,
+we focus on predicting both occupancy and
+signed distance functions instead. In Figure \ref{fig:experiments-2d-vae-occ-sdf-5},
+we show the corresponding training curves. We observe that longer training
+is necessary. This has, of course,
+also influence on the learned latent space. The corresponding
+qualitative results in Figure \ref{fig:experiments-2d-vae-occ-random}
+show that the reconstructions exhibit very low error while random samples
+appear to be of lower quality. In particular, the shown random samples do not appear
+as sharp as the reconstructions; similarly, some of them deviate more strongly
+from the rectangles seen during training.
+
+Overall, we are satisfied by the performance of \VAEs with respect to reconstruction performance. Random samples, as well, appear reasonable, especially in the occupancy
+only case. However, judging the quality of the latent space is still difficult
+-- in our case this conclusion is based on manually inspecting many random
+samples and reconstructions.
+
+\subsection{Maximum Likelihood}
+
+\input{appendix-experiments-2d-ml-abs}
+\input{appendix-experiments-2d-ml-qual}
+
+We followed Section \ref{sec:shape-inference-maximum-likelihood} and performed
+maximum likelihood (\ML) using \PPCA and \VAE priors with $Q = 5$. 
+For optimization we used gradient descent with initial learning rate $\gamma^{(0)} = 0.01$,
+which is decreased every $T_{\gamma} = 100$ iterations according to $\alpha_{\gamma} = 0.95$;
+similarly we use a momentum parameter of $\beta^{(0)} = 0.3$ which is increased
+every $T_{\beta} = T_{\gamma} = 100$ iterations using $\alpha_{\beta} = 1.05$. We usually
+run $2k$ iterations starting with $z^{(0)} = 0$.
+Figure \ref{fig:experiments-2d-ml} shows results for the
+three difficulty levels. Surprisingly, regarding \AbsThr, the \PPCA prior
+outperforms than the \VAE prior. This can be explained
+when considering Figure \ref{fig:experiments-2d-ml-qual} showing qualitative
+results. In particular, we notice that the \VAE prior predicts very clear
+rectangles. These however, do not fit the targets perfectly. Still, 
+the results from the \VAE prior look more applicable.
+It is also surprising, that the influence of the difficulty is negligible.
+Overall, \ML performs rather poorly; considering that only roughly $29.6\%$
+of the pixels are occupied, the absolute errors of $>0.1$ are still very high.
+For the \hard difficulty, the predicted shapes do not even match original rotation
+and size.
+
+\subsection{Non-Probabilistic Approach}
+
+\input{appendix-experiments-2d-dl-abs}
+
+% TODO training details.
+In the non-probabilistic approach,
+referred to as \DL, we interpret the pre-trained generative model $p(y|z)$
+as general decoder $y(z;w)$; we then train a new encoder with the same architecture
+as the recognition model $q(z|y)$ and the decoder is kept
+fixed during training. The used losses
+then tie the predicted shapes to the observations
+(\cf Equations \eqref{eq:shape-inference-free-space-loss} and \eqref{eq:shape-inference-dl-1}).
+In addition, a negative log-likelihood
+loss on the prior $p(z)$ ensures that the encoder only selects shapes from
+the learned latent space. Again, we investigate both \PPCA and \VAEs as priors.
+
+The results are shown in Figure \ref{fig:experiments-2d-ml} in comparison
+with \ML. In this formulation,
+the \VAE prior performs slightly better; however, an absolute error \Abs
+of $\sim 0.095$ for the \easy case is still pretty poor. It shows, however, that
+amortized inference, \ie learning the shape completion task, may be beneficial.
+Considering the qualitative results in Figure \ref{fig:experiments-2d-ml-qual},
+we also see that \PPCA merely predicts a mean shape which happens to perform
+well on the \Rect dataset by construction. The \VAE prior still predicts
+reasonable shapes in the \easy case; but it also resorts to ``standard''
+shapes in the \hard case. Overall, the non-probabilistic approach does not perform
+very well. In the following, we resort to the maximum likelihood loss
+$\mathcal{L}_{\text{ML}}$ instead, leading to amortized maximum likelihood.
+
+%We also conducted experiments with \DL when combining the free space and point
+%losses $\mathcal{L}_{\text{DL},0}$, $\mathcal{L}_{\text{DL},1}$ with the full
+%maximum likelihood loss.
+%In Section \ref{sec:experiments-2d-aml} we already showed that
+%the maximum likelihood works better; however, we also investigated whether
+%the combination of all losses is beneficial. However, it turns out,
+%that using $\mathcal{L}_{\text{DL},0}$ and $\mathcal{L}_{\text{DL},1}$
+%in addition to the maximum likelihood hurts performance; the absolute error
+%\Abs degrades from $~0.037$ to $~0.04$ in the \easy case and similarly for
+%the \moderate and \hard cases.
+
+\subsection{Amortized Maximum Likelihood}
+\label{sec:experiments-2d-aml}
+
+Amortized maximum likelihood, referred to as \AML, follows the idea of
+the non-probabilistic approach but uses the original maximum likelihood
+loss (\cf Equation \eqref{eq:shape-inference-aml-occ-loss})
+instead. In the following, we present experiments regarding both occupancy
+and signed distance functions.
+
+\input{appendix-experiments-2d-aml-abs}
+\input{appendix-experiments-2d-aml-qual}
+
+Figure \ref{fig:experiments-2d-aml} shows quantitative results of \AML on occupancy
+grids considering all three difficulty levels. Especially the \hard
+difficulty causes problems; then again,
+the \VAE prior performs very well on \easy and \moderate difficulties. This is also
+stressed in Figure \ref{fig:experiments-2d-aml-qual}. We interpret these results
+as a proof of concept that amortized maximum likelihood is beneficial; still,
+improvements for the \hard case are necessary.
+Here, \PPCA performs better, which might be explained by the very strong (as linear)
+prior. The main problem in the \hard case is invalid free space,
+especially the ignored rays going through the target shape. This also leads to predictions
+which should actually not lie in the learned latent space. To this end, we
+experimented with a weighted variant of the maximum likelihood loss (\cf
+Equation \eqref{eq:shape-inference-aml-occ-loss}).
+%\begin{align}
+%  \mathcal{L}_{\text{AML},\Ber}(w)
+%  =& - \sum_{i = 1, x_i = 1}^R \ln \Ber(y_i = 1; \theta_i(z))\\
+%  & - \sum_{i = 1, x_i = 0}^R \rho_i \ln \Ber(y_i = 0; \theta_i(z))- \ln \mathcal{N}(z;0, I_Q)
+%  \label{eq:experiments-2d-weighted-aml}
+%\end{align}
+%where for $1 \leq i \leq R$, $x_i \in \{0,1,\uk\}$ are the observations,
+%$y_i$ the predictions and $\rho_i$ per-pixel weights indicate whether the
+%observed free space (\ie $x_i = 0$) can be trusted or not.
+In particular, we weight the maximum likelihood loss on free space pixels,
+\ie $x_i = 0$, by
+\begin{align}
+  \rho_i = 1 - \frac{\sum_{m = 1}^M y_{m,i}}{m},\quad \mathcal{Y} = \{y_m\}_{m = 1}^M \subseteq \{0,1\}^R.
+\end{align}
+Intuitively, $\rho_i$ is intended to express the likelihood that the
+observation $x_i = 0$ can be trusted.
+For the \Rect dataset, this is illustrated
+in Figure \ref{fig:experiments-2d-aml-qual}. Additionally,
+following Equation \eqref{eq:shape-inference-aml-weighted-loss}, we weight
+the negative log-likelihood $- \ln p(z)$ using $\kappa = 15$ (experimentally
+determined). The results of both changes can also be seen in Figures 
+\ref{fig:experiments-2d-aml} and \ref{fig:experiments-2d-aml-qual},
+marked by *.
+
+\input{appendix-experiments-2d-aml-sdf-qual}
+
+Next, we discuss the case of learning both occupancy and signed distance functions.
+In Figure \ref{fig:experiments-2d-aml} we show quantitative results
+in comparison with predicting occupancy only.
+Especially for the \easy case,
+the thresholded absolute error \AbsThr degrades in both cases; 
+Surprisingly, predicting both modalities only improves performance in the
+\hard case; here also predicting occupancy seems to be beneficial.
+Figure \ref{fig:experiments-2d-sdf-aml-qual}
+shows qualitative results for the \easy and \hard cases; it can be seen that even
+in the \easy case, the network is not always able to learn rectangles of correct
+rotation and size. For the \hard case, we see why occupancy can be beneficial:
+the invalid and noisy free space seems to be particular hard when
+predicting signed distance functions. Again, the weighted loss is helpful in these cases.
+Overall, predicting both modalities seems to be a reasonable choice considering
+that signed distance functions are harder to learn and performance, thus,
+decreases slightly, but we still want to benefit from subvoxel accuracy potentially
+provided by signed distance functions.
+
+\subsection{Extended Variational Auto-Encoder}
+
+For the extended variational auto-encoder, \EVAE in short, we only
+present experiments for occupancy predictions. In Figure \ref{fig:experiments-2d-aml}
+we compare the achieved shape completion
+performance with \AML. Surprisingly,
+\EVAE marginally outperforms \AML. However, this can also be due to
+differences in training and initialization which cannot be avoided completely.
+In the end, \AML and \EVAE optimize the same maximum likelihood objective
+-- in the case of \EVAE, this objective is, however, hidden within a
+Kullback-Leibler divergence. To complement the discussion,
+we present qualitative results in Figure \ref{fig:experiments-2d-sdf-aml-qual};
+we can see
+that \EVAE and \AML indeed seem to optimize the same objective and obtain
+very similar results.
+
+\subsection{Discussion}
+
+% TODO which methods to take for 3D, what have we learned, what future work
+Considering the experiments presented so far, and the additional material
+in Section \ref{sec:appendix-experiments-2d}, we understand that the
+shape completion problem is hard. Especially for the -- artificially --
+harder versions of our dataset, \ie \moderate, where on average
+only $~12\%$ of the $32\cdot 32 = 1024$ pixels are observed
+-- $~1\%$ observed points and $~11\%$ free space. 
+In the case of \hard, even less points are observed and $~2\%$ of the
+observed free space is invalid, \ie goes through the target shapes.
+While a \VAE shape prior is able to
+learn a model with roughly $0.005$ absolute reconstruction error (with
+$Q = 5$ dimensional latent space), the proposed shape completion approaches
+such as \AML or \EVAE achieve an absolute error of $\sim 0.037$ in the \easy case.
+The performance degrades to roughly $0.073$ on the \hard dataset.
+We also want to remind the reader that the considered dataset -- even tough
+artificially made harder -- is still very simple. The rectangles are convex shapes
+and the network only has to consider rotation, scaling as well as minor
+translations. Still the completed shapes do not always look convincing,
+especially in the \hard case. Here it is surprising that predicting a mean
+shape, as done by \PPCA, may outperform a more complex
+\VAE prior, but only in the case of \ML. For \AML and \EVAE, the \VAE prior
+performs better and also predicts qualitatively sharper and more reasonable
+shapes. For proceeding to the 3D case, we do not consider
+\PPCA as prior anymore. For shape completion, we
+focus on \AML as well as \EVAE. % TODO
+
+\FloatBarrier
+\newpage
+\section{3D Example}
+\label{sec:appendix-experiments-3d}
+
+We complement the discussion of experimental results on our synthetic 3D dataset
+in Chapter \ref{ch:experiments} with additional
+results regarding the \VAE shape prior and shape completion using \AML
+and \EVAE.
+
+In Figure \ref{fig:appendix-experiments-3d-vae-t} we illustrate the training
+of two \VAEs on occupancy only with $Q = 5$ and $Q = 30$. In practice, these
+plots may give valuable clues on the correct size $Q$ of the latent space.
+As can be seen, using $Q = 5$, the network is not able to obtain
+reasonably low reconstruction error (in terms of \Abs) and the learned latent
+space deviates significantly from the unit Gaussian prior. For $Q = 30$,
+in contrast, a significantly lower absolute error is achieved.  The latent space
+additionally converges roughly to a unit Gaussian prior. From these results,
+we should clearly prefer $Q = 30$, even compared to the used $Q = 15$.
+However, Figure \ref{fig:appendix-experiments-3d-vae-qual-1} demonstrates
+that large $Q$ can lead to worse random samples as the \VAE has problems
+``filling'' the latent space with reasonable samples. Overall,
+this supports our choice of $Q = 15$.
+
+For \AML and \EVAE we present additional qualitative results in Figure
+\ref{fig:appendix-experiments-3d-aml-qual-1} when considering occupancy only.
+We consider the \easy and \moderate cases as they have not been discussed before.
+Again, we can see that both approaches provide reasonable predictions; additionally,
+it shows that the \easy case provides significant more observation compared to
+\moderate and \hard difficulties and, thus, is indeed a very simple problem
+for \AML and \EVAE. In Figure \ref{fig:appendix-experiments-3d-aml-qual-2}
+we show the corresponding results for \AML using both occupancy and signed distance
+functions. In this case, \AML struggles to predict matching shapes on \moderate
+difficulties and predictions occur less sharp. We suspect that
+tuning the shape prior (\ie longer training, adapting $Q$ etc.) might mitigate these
+problems.
+
+\input{appendix-experiments-3d-vae-t}
+\input{appendix-experiments-3d-vae-qual}
+\input{appendix-experiments-3d-aml-qual}
+
+\FloatBarrier
+\newpage
+\section{ShapeNet}
+\label{sec:appendix-experiments-shapenet}
+
+Regarding experiments on our synthetic ShapeNet \cite{ChangFunkhouserGuibasSavarese:2015} dataset,
+we provide additional 3D visualizations corresponding to the \VAE shape prior
+as well as shape completion using \AML in comparison with the supervised baseline.
+For the \VAE shape prior we show qualitative results
+in Figure \ref{fig:appendix-experiments-vae-qual}
+when training on occupancy only or on both modalities, \ie occupancy and
+signed distance functions.
+Results for \AML, again using
+either occupancy only or both modalities, can be found in Figures
+\ref{fig:appendix-experiments-shapenet-aml-qual-2} and
+\ref{fig:appendix-experiments-shapenet-aml-qual-4}, respectively. Here, we consider
+the \moderate case in more detail showing that \AML is able to make significantly
+better predictions with less noisy observations. In comparison to the
+supervised baseline, \AML
+is able to predict shapes that are -- on the low resolution of $32^3$ --
+harder to distinguish from the target or the supervised prediction.
+This also holds when using both modalities, \ie occupancy and
+signed distance functions, where \AML performed particularly
+poor on the \hard case. On \moderate difficulty, in contrast, we are able to
+derive smooth meshes closely resembling the target mesh. Additionally,
+we are able to recover more detail, \eg the roof or the wheels.
+
+\input{appendix-experiments-shapenet-vae-qual}
+\input{appendix-experiments-shapenet-aml-qual}
+\input{appendix-experiments-shapenet-evae-qual}
+
+\begin{figure}
+  \centering
+  \begin{tikzpicture}
+    \node at (0, 0) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/vae_occ_sdf_aml/15_statistics_combined_075/3_input_45}
+    };
+    \node at (3.5, 0) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/vae_occ_sdf_aml/15_statistics_combined_075/3_prediction_45}
+    };
+    \node at (8, 0) {
+      \includegraphics[width=3.75cm,trim={1cm 3cm 1cm 3cm},clip]{experiments/kitti/vae_occ_sdf_aml/15_statistics_combined_075/3_prediction}
+    };
+    
+    \node at (0, -3) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/vae_occ_sdf_aml/15_statistics_combined_075/4_input_45}
+    };
+    \node at (3.5, -3) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/vae_occ_sdf_aml/15_statistics_combined_075/4_prediction_45}
+    };
+    \node at (8, -3) {
+      \includegraphics[width=3.75cm,trim={1cm 3cm 1cm 3cm},clip]{experiments/kitti/vae_occ_sdf_aml/15_statistics_combined_075/4_prediction}
+    };
+    
+    \node at (0, 1.75) {input};
+    \node at (3.5, 1.75) {prediction};
+    \node at (8, 1.75) {mesh};
+  \end{tikzpicture}
+
+  % TODO short caption
+  \caption{Qualitative results for \AML predicting both occupancy and signed distance functions
+  on KITTI. We show the occupancy grids corresponding to the observed points, the predicted shape
+  and the mesh derived from the predicted signed distance functions using marching cubes. On KITTI,
+  we do not have access to ground truth shapes.}
+  \label{fig:appendix-experiments-kitti-aml-4}
+\end{figure}
+
+\FloatBarrier
+\newpage
+\section{KITTI}
+\label{sec:appendix-experiments-kitti}
+
+On KITTI \cite{GeigerLenzUrtasun:2012,GeigerLenzStillerUrtasun:2013},
+we also present additional qualitative results in the form of 3D visualizations.
+In particular, in Figure \ref{fig:appendix-experiments-kitti-aml-2}
+we provide additionally qualitative results comparing \AML against
+the supervised baseline using occupancy only. In Figure \ref{fig:appendix-experiments-kitti-aml-4}
+we provide additional qualitative results for \AML using both occupancy and
+signed distance functions.
+
+\begin{figure}
+  \centering
+  \vspace*{-2cm}
+  \begin{tikzpicture}
+    \node at (0, 0) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/vae_occ_aml/15_long_statistics_combined/5_input_45}
+    };
+    \node at (3.5, 0) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/vae_occ_aml/15_long_statistics_combined/5_prediction_45}
+    };
+    \node at (7, 0) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/baseline/moderate_15/5_prediction_45}
+    };
+    
+    \node at (0, -3) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/vae_occ_aml/15_long_statistics_combined/6_input_45}
+    };
+    \node at (3.5, -3) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/vae_occ_aml/15_long_statistics_combined/6_prediction_45}
+    };
+    \node at (7, -3) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/baseline/moderate_15/6_prediction_45}
+    };
+  
+    \node at (0, -6) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/vae_occ_aml/15_long_statistics_combined/7_input_45}
+    };
+    \node at (3.5, -6) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/vae_occ_aml/15_long_statistics_combined/7_prediction_45}
+    };
+    \node at (7, -6) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/baseline/moderate_15/7_prediction_45}
+    };
+    
+    \node at (0, -9) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/vae_occ_aml/15_long_statistics_combined/8_input_45}
+    };
+    \node at (3.5, -9) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/vae_occ_aml/15_long_statistics_combined/8_prediction_45}
+    };
+    \node at (7, -9) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/baseline/moderate_15/8_prediction_45}
+    };
+
+    \node at (0, -12) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/vae_occ_aml/15_long_statistics_combined/9_input_45}
+    };
+    \node at (3.5, -12) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/vae_occ_aml/15_long_statistics_combined/9_prediction_45}
+    };
+    \node at (7, -12) {
+      \includegraphics[width=3.75cm,trim={3.5cm 2.5cm 3.5cm 2.5cm},clip]{experiments/kitti/baseline/moderate_15/9_prediction_45}
+    };
+
+    \node at (0, 1.75) {Input};
+    \node at (3.5, 1.75) {\AML};
+    \node at (7, 1.75) {Baseline};
+  \end{tikzpicture}
+
+  % TODO short caption
+  \caption{Additional qualitative results of \AML and the supervised baseline on KITTI.
+  Here, we do not have access to ground truth shapes. Therefore, we can only show the occupancy
+  grids corresponding to the observed points, the \AML predictions and the predictions from
+  the supervised baseline.}
+  \vspace*{-0.5cm}
+  \label{fig:appendix-experiments-kitti-aml-2}
+\end{figure}

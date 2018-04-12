@@ -1,0 +1,170 @@
+\chapter{Related Work}
+\label{ch:related-work}
+
+In this chapter, we intend to provide a concise but structured discussion
+of related work. We first consider the shape completion task itself, focusing
+on data-driven and learning-based approaches that are most related to our approach.
+We also discuss the use of shape priors in general, \eg for tasks including
+3D reconstruction, 3D pose estimation or tracking. Finally, we give a brief
+overview of 3D deep learning, specifically regarding generative shape models,
+as well as the idea of amortized inference. We note, however, that we do not intend
+to provide a comprehensive discussion of these areas due to time and space constraints.
+
+\section{Shape Completion}
+
+% PhDs:
+% - Martin Oswald (http://people.inf.ethz.ch/moswald/publications/resources/Oswald-MR-PhD-Thesis.pdf)
+% - Kalin Kolev
+% - Christian Häne
+% - Marc Pollefeys (https://www.inf.ethz.ch/personal/pomarc/pubs/PollefeysPhD.pdf)
+Shape completion is closely related to 3D reconstruction as well as
+surface reconstruction; however, the addressed problems
+do usually not exactly match the problem of shape completion.
+Therefore, we refer to recent textbooks
+\cite{ForsythPonce:2012, Szeliski:2011} and surveys
+\cite{MoonsVanGoolVergauwen:2010,FurukawaHernandez:2015,
+BergerSilva:2014,BrecksonFisher:2005}
+for a general overview of these fields.
+
+In contrast to surface reconstruction and 3D reconstruction, shape completion
+is usually performed on partial scans of individual objects.
+Following \cite{SungAngstGuibas:2015}, shape completion approaches
+can roughly be categorized into data-driven methods and symmetry-based
+methods.
+The latter detect symmetry in non-occluded parts in order to complete shapes
+by completing the corresponding symmetry in occluded parts; representative works
+are \cite{ThrunWegbreit:2005,PaulyGuibas:2008,ZhengChen:2010,KroemerPeters:2012}
+or \cite{LawAliaga:2011}. These approaches also found application in robotics,
+\eg for robot grasping \cite{KroemerPeters:2012,MartonRusuBeetz:2009}.
+The data-driven case is more interesting
+in relation to the proposed approaches; in early work, Pauly \etal
+\cite{PaulyGuibas:2005} pose shape completion as retrieval and
+alignment problem. Further work in this direction includes \eg
+\cite{LiDaiGuibasNiessner:2015,NanSharf:2012,GuptaMalik:2015,DameReid:2013,
+EngelmannStuecklerLeibe:2016,EngelmannLeibe:2017} where 
+local shape features \cite{LiDaiGuibasNiessner:2015,NanSharf:2012},
+object knowledge \cite{GuptaMalik:2015,DameReid:2013} or shape priors
+\cite{EngelmannStuecklerLeibe:2016,EngelmannLeibe:2017,DameReid:2013} have found application.
+Model fitting often follows a scheme similar to the
+iterative closest point (ICP) algorithm \cite{BeslMcKay:1992} or is posed
+as energy minimization. We also refer to \cite[Table~1]{BergerSilva:2014}.
+
+Recently, several learning-based approaches have been proposed
+\cite{RieglerGeiger:2017,FirmanBrostow:2016,SmithMeger:2017,DaiNiessner:2016,SharmaFritz:2016,
+RezendeHeess:2016,FanSuGuibas:2016}, most of them using deep learning.
+Shape completion is posed as supervised learning problem, \eg from single RGB(-D)
+images \cite{FanSuGuibas:2016,GirdharGupta:2016}, partial observations
+\cite{RieglerGeiger:2017,DaiNiessner:2016,RezendeHeess:2016,SmithMeger:2017},
+or noisy shapes \cite{SharmaFritz:2016}. In comparison with data-driven approaches,
+shape completion usually involves a single forward pass of the trained network.
+However, these approaches can only be applied on synthetic datasets such as
+ModelNet \cite{WuSongXiao:2015} or ShapeNet \cite{ChangFunkhouserGuibasSavarese:2015}
+as explicit supervision is required. We also intend to leverage deep neural networks,
+however, we want to learn shape completion in a weakly supervised setting
+only using the given observations and knowledge about the object category.
+This allows us to learn shape completion on real data, \eg on KITTI
+\cite{GeigerLenzUrtasun:2012,GeigerLenzStillerUrtasun:2013}, while still
+providing efficient inference through the trained network.
+
+\subsection{Shape Priors}
+
+As indicated above, shape priors play an important role in shape completion.
+For example, learning-based approaches can be
+understood as implicitly learning a shape prior from supervised training data
+\cite{RieglerGeiger:2017,SmithMeger:2017,DaiNiessner:2016,SharmaFritz:2016,
+RezendeHeess:2016,FanSuGuibas:2016}. Only \cite{GirdharGupta:2016} uses
+the learned shape model explicitly to constrain the space of
+predicted shapes. Data-driven methods may also make use of learned shape priors, \eg
+using principal component analysis (PCA) \cite{EngelmannStuecklerLeibe:2016,EngelmannLeibe:2017}
+or Gaussian process latent variable models (GP-LVM) \cite{DameReid:2013}.
+However, shape priors have also been applied in different domains,
+\eg in 3D pose estimation -- often tackled in conjunction with
+tasks such as image segmentation \cite{AdrianReid:2012,DambrevilleTannenbaum:2008,
+SandhuTannenbaum:2009} or scene flow \cite{MenzeHeipkeGeiger:2015}.
+Shape priors have also become a standard tool in tracking, see \cite{MaSibley:2014}
+or \cite{LeottaMundy:2009} for related work in this domain.
+In classical 3D reconstruction, shape priors are also commonly used to resolve \eg ambiguities
+\cite{GueneyGeiger:2015}, specularities \cite{DameReid:2013} or the lack of
+texture \cite{BaoSavarese:2013}.
+In most cases, shape priors are ``learned'' from full shapes; this is in contrast
+to non-data-driven priors such as local or global smoothness priors,
+planarity assumptions \etc, see \cite{BergerSilva:2014}.
+We mostly follow the idea of \cite{EngelmannStuecklerLeibe:2016,EngelmannLeibe:2017,
+DameReid:2013} or \cite{GirdharGupta:2016} and use a shape prior explicitly to
+define and constraint the space of possible shapes.
+
+\section{3D Deep Learning and Amortized Inference}
+
+In computer vision, deep learning often refers to the practice of using
+deep convolutional neural networks \cite{LeCunBoserDenkerHenderson:1989}
+to train discriminative and more recently also generative models. 
+While neural networks have been used and researched for several decades now (\eg see
+\cite{Bishop:1995,Haykin:2005,Rosenblatt:1958,RumelhartHintonWilliams:1986,
+HornikStinchcombeWhite:1989}), they only recently received considerable attention.
+Among several milestones is the substantial performance increase on the ImageNet
+classification challenge \cite{DengFeiFei:2009} in 2012 \cite{KrizhevskySutskeverHinton:2012}.
+Afterwards, deep convolutional neural networks have been successfully applied
+to a wide range of computer vision tasks -- more complete overviews can be found in
+\cite{Schmidhuber:2014,WangRajXing:2017,Li:2017,
+BengioCourvilleVincent:2012,LeCunBengioGeoffrey:2015,
+GoodfellowBengioCourville:2016}.
+
+Recently, deep generative models, \eg
+\cite{VanDenOordKavukcuoglu:2016,VanDenOordGraves:2016,GoodfellowBengio:2014,
+MakhzaniGoodfellow:2015,KingmaWelling:2013,LarsenWinther:2016}
+and related work, have received considerable attention. Such models offer
+to generate realistic images or shapes and to learn strong prior models
+which are interesting for semi-, weakly- or unsupervised tasks, \eg in
+\cite{KingmaMohamedRezendeWelling:2014}. In this thesis, we will use variational
+auto-encoders and subsequent work \cite{ImAhnMemisevicBengio:2017,JangGuPoole:2016,MaddisonMnihTeh:2016} as they
+include both an inference and a generative model. This is also motivated by
+the fact that generative adversarial networks \cite{GoodfellowBengio:2014}
+are known to be hard to train
+\cite{MeschederGeiger:2017,NowozinTomioka:2016,SalimansGoodfellowChen:2016,
+GulrajaniCourville:2017,ArjovskyBottou:2017},
+%\footnote{
+%  \url{https://github.com/soumith/ganhacks}
+%}
+a problem that we anticipated to be amplified on 3D data. Generative models
+have also been applied to shape modeling, \eg
+\cite{SmithMeger:2017,GirdharGupta:2016,%DaiNiessner:2016,SharmaFritz:2016,
+BrockWeston:2016,WuSongXiao:2015,WuTenenbaum:2016}, allowing
+shape interpolation, manipulation and generation.
+
+\subsection{3D Deep Learning}
+
+Most works, including \cite{WuTenenbaum:2016,SmithMeger:2017,WuSongXiao:2015,
+BrockWeston:2016,SharmaFritz:2016,DaiNiessner:2016,GirdharGupta:2016,
+GarciaGarciaLopez:2016,MaturanaScherer:2015}, naively
+generalize convolutional neural networks to 3D data, \eg in the form of voxelized shapes.
+Unfortunately, this significantly limits the used resolution; usually resolutions between
+$32^3$ and $64^3$ are used. Some approaches, however, exploit the sparsity of
+3D data through octrees, \eg
+\cite{WangTong:2017,RieglerGeiger:2016,RieglerGeiger:2017,TatarchenkoBrox:2017},
+to reduce memory and time consumption and allow higher resolutions, \eg up to
+$256^3$ \cite{RieglerGeiger:2016}. Alternatively, sparse convolution schemes have
+been defined to speed up training \cite{LiGuibas:2016,EngelckePosner:2017,Graham:2015}.
+There is also a line of work applying convolutional neural networks directly to meshes
+\cite{GuoChen:2015,BoscainiVandergheynst:2015,BrunaLeCun:2013}
+or point clouds \cite{QiSuGuibas:2016a,FanSuGuibas:2016,QiYiSuGuibas:2017}. While we also
+use simple 3D convolutional neural networks for the presented experiments,
+which we also conduct on a resolution of $32^3$, the above references provide
+interesting possibilities for future work.
+
+\subsection{Amortized Inference}
+
+% https://arxiv.org/pdf/1611.01722.pdf
+% http://gershmanlab.webfactional.com/pubs/GershmanGoodman14.pdf
+% https://arxiv.org/pdf/1505.05770.pdf
+To the best of our knowledge, the notion of amortized inference
+was first introduced in \cite{GershamGoodman:2014}, however, has been used repeatedly
+in recent work
+\cite{KingmaWelling:2013,RezendeMohamed:2015,WangLiu:2016,
+RezendeMohamedWierstra:2014,RitchieGoodman:2016}. While a clear, coherent definition
+is still missing, amortized inference generally describes the idea of learning
+inference, \eg in the form of ``learning to sample'' \cite{WangLiu:2016}
+or amortized, \ie learned, variational inference \cite{KingmaWelling:2013,
+RezendeMohamed:2015}. The idea includes that drawn samples -- or past inferences -- 
+are not considered independently; instead, inference can profit from insights
+obtained from past inferences. In our case, we learn, \ie amortize, the 
+maximum likelihood problem for shape completion.

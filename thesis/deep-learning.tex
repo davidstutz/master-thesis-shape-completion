@@ -1,0 +1,1195 @@
+\chapter{Deep Learning}
+\label{ch:deep-learning}
+
+Deep learning generally describes the use of deep neural networks
+\cite{GoodfellowBengioCourville:2016} -- where depth may refer to both the number of model
+parameters as well as the number of used layers, \ie processing steps.
+In the context of this thesis, neural networks are used in the framework
+of variational auto-encoders to learn the shape prior, \ie the embedding
+of shapes $\mathcal{Y}$ within a latent space $\mathcal{Z}$. Specifically,
+both the generative model $p(y | z)$ and the approximate recognition model
+$q(z | y)$ are implemented using neural networks.
+This is accomplished by choosing appropriate parameterizations and predicting
+the corresponding parameters -- \eg mean and variance for Gaussian distributions.
+In the proposed approaches, neural networks will also be used to learn the embedding
+of observations $x$ in the latent shape space. For amortized maximum likelihood,
+this will be a deterministic embedding $x \mapsto z(x;w)$ -- here, we
+made the parameters $w$ of the neural network explicit. For the proposed
+extended variational auto-encoder, the embedding is represented by the
+approximate recognition model $q(z | x)$.
+
+In general, neural networks can be introduced from different viewpoints (\cf
+\cite{Bishop:2006,DudaHartStork:2001,Bishop:1995,Haykin:2005,GoodfellowBengioCourville:2016}).
+In this chapter, we follow \cite{GoodfellowBengioCourville:2016} 
+and introduce neural networks as series (or acyclic graph, in general) of
+tensor operations which use a set of parameters $w$ in order to -- given input $x$ --
+compute a function $y(x;w)$ that may approximate some target function.
+We will first introduce the used concept of tensors -- the data structure
+underlying all modern deep learning frameworks -- before gradually
+defining more complex networks and finally discussing network training.
+
+\section{Tensors}
+
+In our context, real tensors are generally understood as multi-dimensional arrays
+\cite[Section~2.1]{GoodfellowBengioCourville:2016} of real numbers:
+%We note that the presented concept of tensors does not
+%necessarily match the concept of tensors in mathematics or physics\footnote{
+%  We refer the reader to this lively discussion with many good examples:
+%  \url{http://stats.stackexchange.com/questions/198061/why-the-sudden-fascination-with-tensors}.
+%}.
+
+\begin{definition}%[Tensor]
+  A (real) tensor is an element $t \in \mathbb{R}^{n_1 \times \ldots \times n_r}$
+  where $(n_1,\ldots,n_r) \in \mathbb{N}^r$ and $r$ is called the rank of the tensor.
+  We write $r_i := r_{(i_1,\ldots,i_r)}$ to index a tensor; in this case,
+  $i = (i_1, \ldots, i_r)$ is called multi-index.
+\end{definition}
+
+In practice, the rank is often referred to as dimension. While this is mathematically
+imprecise, we will use both interchangeably. Thus, a tensor
+$t \in \mathbb{R}^{n_1 \times \ldots \times n_r}$ has dimension (=rank) $r$ and
+$n_i$ is called the size of dimension $i$. We also allow so-called singleton dimensions,
+\ie dimensions of size $1$. Then, the terminology can be applied one-to-one
+to many popular deep learning frameworks such as Torch, PyTorch, Theano,
+Tensorflow, Caffe and more\footnote{
+  \url{http://torch.ch/}, \url{http://pytorch.org/}, \url{https://github.com/Theano/Theano}, \url{https://www.tensorflow.org/} and \url{http://caffe.berkeleyvision.org/}.
+}.
+
+\begin{example}
+  Examples include trivial cases such as scalars, \ie rank-$0$ tensors, vectors,
+  \ie rank-$1$ tensors, and matrices, \ie rank-$2$ tensors. Examples specific to
+  our problem include:
+  \begin{description}
+    %\item[Scalar] A scalar is a tensor of rank $0$.
+    %\item[Vector] A vector $t \in \mathbb{R}^C$ is a rank $1$ tensor.
+    %\item[Matrix] A matrix $t \in \mathbb{R}^{H \times W}$ is a rank $2$ tensor
+    %where $H$ is the number of rows and $W$ the number of columns.
+    %\item[Image] A rank-$2$ tensor $t \in \mathbb{R}^{H \times W}$
+    %can be interpreted as grayscale (or single-channel) image of height
+    %$H$ and width $W$.
+    %In practice, the intensity of each pixel is usually encoded as 
+    %8-bit number in $[0,255]$.
+    \item[Multi-Channel Image] An image is a tensor of rank $3$:
+    $t \in \mathbb{R}^{C \times H \times W}$ where $C$ is the number of channels,
+    $H$ the height of the image and $W$ the width of the image.
+    For grayscale (\ie single-channel) images, $C = 1$, while color images use
+    $C = 3$ channels usually corresponding to red, green and blue. Grayscale as
+    well as color is usually encoded using 8-bit each.
+    %In deep learning, the different channels may also be
+    %the result of intermediate feature computations on the image.
+    \item[Multi-Channel Volumes] A tensor $t \in \mathbb{R}^{C \times H \times W \times D}$
+    of rank $4$ can be interpreted as $C$-channel volume where $H$, $W$ and $D$ represent
+    height, width and depth, respectively.
+    Volumes are commonly used in medical imaging (\ie MRI or CT volumes). In our case,
+    we use volumes to represent shapes using occupancy grids or (signed)
+    distance functions, see Chapter \ref{ch:shape-representation}.
+    %\item[Multi-Channel Volumes] Multi-channel volumes are represented by
+    %rank $4$ tensors $t \in \mathbb{R}^{C \times H \times W \times D}$. In addition
+    %to the spatial dimensions, $C$ channels are included.
+    \item[Batch of Multi-Channel Volumes] A batch, \ie a set, of multi-channel volumes
+    can be interpreted as tensor of rank $5$:
+    $t \in \mathbb{R}^{B \times C \times H \times W \times D}$ where $B$ is
+    the size of a set of multi-channel volumes. When training neural networks,
+    $B$ will be the batch-size.
+  \end{description}
+\end{example}
+
+In this thesis, we will mostly work with volumes and multi-channel volumes
+and -- during training -- with batches of these. Therefore, 
+we always consider the rank-$5$ case and usually refer to the
+dimensions as $B \times C \times H \times W \times D$.
+%All of the introduced concepts easily generalize to the case of tensors with
+%different rank.
+
+\subsection{Basic Tensor Operations}
+
+% TODO cite tensor contraction
+For tensors of rank $1$ or $2$ we can apply all the operations known from
+linear algebra (\eg matrix-vector or matrix-matrix multiplications). 
+Additionally, we define element-wise operations which are commonly
+used in deep learning:
+
+\begin{definition}
+  Let $t, s$ be two tensors; let $i \in \mathbb{N}^5$ be a multi-index. Further,
+  let $\times$ be any binary arithmetic operation on $\mathbb{R}$. Then the corresponding
+  element-wise operation is defined by $(t \times s)_{i} = t_{i} \times s_{i}$.
+\end{definition}
+
+\begin{definition}
+  Let $t$ be a tensor and $i \in \mathbb{N}^5$ be a multi-index; further, let
+  $h : \mathbb{R} \mapsto \mathbb{R}$ be a real-valued function.
+  Then, $h$ may operate element-wise on $t$, \ie $h(t)_i = h(t_i)$.
+\end{definition}
+
+\section{Layered Neural Networks}
+
+In the following, we introduce layered neural networks -- models consisting
+of several layers, \ie a sequence, of tensor operations. We follow the 
+introduction of \cite[Chapter~6]{GoodfellowBengioCourville:2016}:
+
+\begin{definition}
+  \label{def:deep-learning-graph}
+  A (feed-forward, layered) neural network is a directed, acyclic graph
+  $G = (V, E)$ where each node $v \in V$ corresponds to an operation
+  mapping one or more input tensors to one or more output tensors.
+  The edges $(v_i, v_j) \in E$ characterize the information flow, \ie one
+  or more of the output tensors of operation $v_i$ are fed as input into
+  operation $v_j$. The operations
+  $v_i$ are also called layers and may have a finite number of adjustable
+  weights.
+\end{definition}
+
+% TODO wording, details ...
+Given a topological ordering -- see \cite[Chapter~22]{Cormen:2009} -- of the
+vertices $V = (v_{i_1}, \ldots, v_{i_{|V|}})$, the network computes its output
+by sequentially computing the layers' outputs given an input $x$, \ie
+$v_{i_1}(x)$, $v_{i_2}(v_{i_1}(x), x), v_{i_3}(v_{i_2}(v_{i_1}(x)), v_{i_1}(x), x)$, ...
+An early example of a one-layer neural network is the perceptron \cite{Rosenblatt:1958}:
+
+\begin{example}
+  The perceptron is a linear classifier (\cf \cite[Chapter~4]{Bishop:2006}):
+  $y(x;w) = x w^T$ where $x \in \mathbb{R}^{1 \times C}$ is an input tensor and
+  $w \in \mathbb{R}^{1 \times C}$
+  is a weight vector. Classification is done by considering $\sign y(x;w)$
+  with class labels in $\{-1,1\}$. While the
+  inner product $x w^T$ might be unintuitive,
+  it allows to easily apply the decision function
+  to a batch of samples $x_1,\ldots,x_B$ stacked into $x \in \mathbb{R}^{B \times X}$.
+  %As we will see later, this formulation is also beneficial for training the weights
+  %$w$.
+\end{example}
+
+Today the perceptron is more important than ever because it describes the
+basic building blocks of neural networks, the fully connected layer:
+
+\begin{definition}
+  A fully connected layer, denoted $\text{fc}_{\Cin, \Cout}$
+  takes as input a tensor $x \in \mathbb{R}^{B \times \Cin}$ and computes:
+  \begin{align}
+    \text{fc}_{\Cin,\Cout}(x) = x w^T \in \mathbb{R}^{B \times \Cout}
+  \end{align}
+  where $w \in \mathbb{R}^{\Cout \times \Cin}$ is the corresponding weight matrix.
+\end{definition}
+
+Usually, the fully connected layer is combined with an additive bias term:
+\begin{align}
+  y(x;w) = x w^T + \left[\begin{matrix}b\\\vdots\end{matrix}\right]
+\end{align}
+with $x \in \mathbb{R}^{B \times \Cin}$, $b \in \mathbb{R}^{1 \times \Cout}$
+(which is repeated $B$ times to allow operations on batches) and,
+as before, $w \in \mathbb{R}^{\Cout \times \Cin}$. 
+To make this additive term explicit, we use a separate layer.
+The bias layer can easily be generalized to tensors of higher rank and
+is usually followed by non-linearity:
+
+%\begin{definition}
+%  A bias layer, denoted $\text{bias}$ takes as input an arbitrary tensor
+%  $x \in \mathbb{R}^{B \times C}$ and adds a bias weight $w \in \mathbb{R}^{1 \times C}$
+%  to each element in the batch:
+%  \begin{align}
+%    \text{bias}(x) = x + \left[\begin{matrix}w\\\vdots\end{matrix}\right].
+%  \end{align}
+%\end{definition}
+
+%The fully connected layer (and bias layer if applicable) is usually followed by
+%a non-linearity, this can also be motivated using the perceptron:
+
+%\begin{example}
+%  \label{ex:deep-learning-sigmoid}
+%  For multi-class problems the decision function $\sign y(x;w)$ is usually problematic
+%  as it allows regions in the input space where inputs $x$ are not assigned to 
+%  any class -- this occurs both for one-vs-all and one-vs-one classifiers \cite{Bishop:2006}.
+%  Therefore, the posteriors
+%  \begin{align}
+%    y_k(x;w) \approx p(y^*_k = 1 | x)
+%  \end{align}
+%  are modeled instead. This can be achieved by using
+%  \begin{align}
+%    y(x;w) = \sigma(x w^T)
+%  \end{align}
+%  with $x \in \mathbb{R}^{1 \times C}$, $w \in \mathbb{R}^{K \times C}$
+%  with $K$ being the number
+%  of classes and
+%  \begin{align}
+%    \sigma(x) = \frac{1}{1 + \exp(-x)}\label{eq:deep-learning-sigmoid}
+%  \end{align}
+%  being the logistic sigmoid.
+%\end{example}
+
+%Furthermore, non-linearity layers are motivated by the wish to
+%approximate complex non-linear functions. Work from the late 80s
+%\cite{HornikStinchcombeWhite:1989} shows that stacking perceptrons with non-linearities
+%allows to approximate any continuous function.
+
+%The element-wise application of non-linear functions can be formalized
+%as layer as follows:
+
+\begin{definition}
+  Let $h : \mathbb{R} \mapsto \mathbb{R}$ be a real-valued function.
+  Then, $h$ also denotes a layer taking as input an arbitrary tensor $x$
+  and computing $h(x)$ element-wise.
+\end{definition}
+
+These non-linearities are also called activation or transfer functions
+(\cf \cite{Bishop:1995,Haykin:2005,GoodfellowBengioCourville:2016})
+and are motivated by the wish to approximate complex non-linear functions
+\cite{HornikStinchcombeWhite:1989} using a combination of simpler,
+non-linear functions.
+
+\begin{example}
+  Common non-linearities for neural networks include the logistic sigmoid
+  \begin{align}
+    \sigma(x) = \frac{1}{1 + \exp(-x)}
+  \end{align}
+  and the rectified linear unit $\ReLU(x) = \max(x, 0) = [x]_+$.
+  %Other common activation functions include the hyperbolic tangent,
+  %and variants of $\ReLU$ \cite{HeZhangRenSun:2015}.
+  The logistic sigmoid allows to model probabilities and
+  $\ReLU$ non-linearities have been shown
+  to reduce training time and improve performance
+  \cite{KrizhevskySutskeverHinton:2012,SzegedyRabinovich:2015} while being
+  a good model of biological neurons \cite{GlorotBengio:2011}.
+\end{example}
+
+Finally we discuss our first layered neural network whose network graph
+is illustrated in Figure \ref{fig:deep-learning-mlp}: the multi-layer perceptron
+\cite[Chapter 4]{Bishop:1995}
+which consists of a sequence of fully connected, bias and non-linearity layers.
+The name comes from the fact that it can be interpreted as a multi-layer
+extension of the perceptron:
+
+\begin{figure}[t]
+  \centering
+  \begin{tikzpicture}
+    \node (x) at (0.5,0) {$x$};
+    \node[fc] (fc1) at (2,0) {\small$\text{fc}_{C_0, C_1}$};
+    \node[bias] (b1) at (3.5,0) {\small$\text{bias}$};
+    \node[h] (h1) at (4.5,0) {\small$h$};
+    \node[fc] (fc2) at (5.75,0) {\small$\text{fc}_{C_1, C_2}$};
+    \node[bias] (b2) at (7.25,0) {\small$\text{bias}$};
+    \node[h] (h2) at (8.25,0) {\small$h$};
+    \node[fc] (fc3) at (9.5,0) {\small$\text{fc}_{C_2, C_3}$};
+    \node[bias] (b3) at (11,0) {\small$\text{bias}$};
+    \node[h] (h3) at (12,0) {\small$h$};
+    \node (y) at (13.5,0) {\small$y$};
+    \draw[->] (x) -- (fc1);
+    \draw[->] (fc1) -- (b1);
+    \draw[->] (b1) -- (h1);
+    \draw[->] (h1) -- (fc2);
+    \draw[->] (fc2) -- (b2);
+    \draw[->] (b2) -- (h2);
+    \draw[->] (h2) -- (fc3);
+    \draw[->] (fc3) -- (b3);
+    \draw[->] (b3) -- (h3);
+    \draw[->] (h3) -- (y);
+  \end{tikzpicture}
+  \vskip 6px
+  % TODO short caption
+  % TODO parameters
+  \caption[]{Illustration of a multi-layer perceptron with $L = 3$ fully-connected 
+  layers followed by bias layers and non-linearities. The sizes $C_1$ and $C_2$ are
+  hyper-parameters while $C_0$ and $C_3$ are determined by the problem at hand.
+Overall, the multi-layer perceptron represents a function $y(x;w)$ parameterized by
+the weights $w$ in the fully-connected and bias layers.}
+  \label{fig:deep-learning-mlp}
+\end{figure}
+
+\begin{example}
+  \label{ex:deep-learning-mlp}
+  % TODO cite
+  A multi-layer perceptron consists of several stages of computation as illustrated
+  in Figure \ref{fig:deep-learning-mlp}. Let $L > 0$ 
+  be the number of fully connected layers; $x \in \mathbb{R}^{1 \times C_0}$
+  be the input. Then, the first stage computes:
+  \begin{align}
+    y^{(1)} = h\left(x (w^{(1)})^T + b^{(1)}\right)
+  \end{align}
+  with $w^{(1)} \in \mathbb{R}^{C_1 \times C_0}$ and $b^{(1)} \in \mathbb{R}^{1 \times C_1}$.
+  As shown in Figure
+  \ref{fig:deep-learning-mlp}, this already subsumes the first fully connected,
+  bias and non-linearity layers. Subsequently, for $l > 1$ we define:
+  \begin{align}
+    y^{(l)} = h\left(y^{(l - 1)} (w^{(l)})^T + b^{(l)}\right).\label{eq:deep-learning-mlp}
+  \end{align}
+  with $w^{(l)} \in \mathbb{R}^{C_l \times C_{l - 1}}$ and
+  $b^{(l)} \in \mathbb{R}^{1 \times C_l}$. Finally, $y^{(L)}$ is the output
+  of the network. Again, this formulation extends to the case of
+  multiple $x_1,\ldots,x_B$ stacked into one tensor $x \in \mathbb{R}^{B \times C}$.
+\end{example}
+
+\section{Convolutional Neural Networks}
+
+Convolutional neural networks were introduced in
+\cite{LeCunBoserDenkerHenderson:1989} and replace the fully connected layers
+with discrete convolutions. This has the advantage that spatial information
+within images can be used explicitly while simultaneously reducing the number
+of parameters. Additionally, discrete convolution is inherently invariant
+to translations, can be implemented efficiently and is still a linear operation
+with respect to both input and parameters. Overall, convolutional neural networks
+played an important role in the recent success of deep learning in computer
+vision.
+
+\subsection{Convolution}
+
+The discrete convolution is a well-known technique in signal processing.
+The following example introduces the general concept. More details can be found
+in most signal processing textbooks, \eg \cite{Gonzalez:2006}.
+
+\begin{example}
+  % TODO cite
+  For simplicity, let $x \in \mathbb{R}^C$ be a one-dimensional input signal.
+  Further, let $w \in \mathbb{R}^{2K + 1}$ be a so-called kernel.
+  For notational convenience, we index $w$ using $w_i$, $-K \leq i \leq K$.
+  Then, the discrete convolution is defined as:
+  \begin{align}
+    (x\ast w)_i := \sum_{j = -K}^K x_{i - j}w_j\label{eq:one-dimensional-convolution}
+  \end{align}
+  where the size of the result will depend on how the convolution operation
+  is defined on the boundaries of the signal. In particular, for
+  $i < K$ or $i > n - K$, Equation~\eqref{eq:one-dimensional-convolution}
+  is not well-defined. Usually, we assume a padded version of $x$ such that 
+  $x_i = 0$ for all $i \notin \{1,\ldots,n\}$. We note that it is straight-forward
+  to show that the discrete convolution is linear in both $x$ and $w$.
+\end{example}
+
+%This simple concept can easily be lifted to general tensors:
+
+\begin{definition}
+  \label{def:deep-learning-convolutional-layer}
+  In general, let $x \in \mathbb{R}^{n_1 \times \ldots \times n_r}$ be a tensor
+  of rank $r$ and $w \in \mathbb{R}^{2K_1 + 1 \times \ldots \times 2K_r + 1}$ be a
+  kernel of rank $r$. Then, the convolution of rank $r$ is defined as follows:
+  \begin{align}
+    (x\ast w)_i = \sum_{j_1 = -K_1}^{K_1} \cdots \sum_{j_r = -K_r}^{K_r} t_{i - j} s_j
+    \label{eq:deep-learning-convolution}
+  \end{align}
+  where $w$ is indexed with $-K_1 \leq j_1 \leq K_1, \ldots, -K_r \leq j_r \leq K_r$
+  for simplicity of notation and multi-indices $i$ and $j$ can be added and subtracted
+  element-wise.
+\end{definition}
+
+% TODO interpretation
+% TODO cite padding
+The above definition is specific to our use cases, \ie convolutional neural networks,
+where we assume odd kernel sizes for simplicity. As in the one-dimensional case,
+the input signal
+is assumed to be padded with zeros; this is commonly done when using convolutions
+in neural networks \cite[Section 9.5]{GoodfellowBengioCourville:2016}.
+%Alternatively, Equation \eqref{eq:deep-learning-convolution}
+%can only be applied for valid indices $i$ where $t_{i - j}$ is always
+%well defined. Then, however, the size of $x \ast w$ chages. In the following,
+%we will always assume zero padding.
+
+\subsection{Convolutional Layer}
+
+Based on the convolution as described above, the convolutional layer can
+be introduced as follows:
+
+% TODO illustration
+\begin{definition}
+  A convolutional layer $\text{conv}_{\Cin, \Cout, K}$ takes as input a tensor
+  $x \in \mathbb{R}^{B \times \Cin \times H \times W \times D}$ and computes
+  \begin{align}
+    (\text{conv}_{\Cin, \Cout, K}(x))_{b, \cout} = \sum_{\cin = 1}^{\Cin} w_{\cout, \cin} \ast t_{b, \cin}
+  \end{align}
+  where $W \in \mathbb{R}^{\Cout \times \Cin \times K \times K \times K}$ is the
+  corresponding weight tensor with $K$ being odd.
+\end{definition}
+
+% TODO cite strides
+In words, a convolutional layer takes as input a tensor consisting of
+$\Cin$ channels, convolves each of these channels with
+the corresponding kernel $w_{\cout, \cin} \in \mathbb{R}^{K \times K \times K}$
+and sums over the results. This
+is done $\Cout$ times, thereby creating $\Cout$ new channels.
+%As of common practice, we restrict ourselves to odd kernel sizes.
+The convolutional layer comes in many different flavors, \eg using 
+(fractional) strides \cite{DumoulinVisin:2016}, as deconvolution 
+\cite{ZeilerFergus:2010} or as dilated convolution \cite{YuKoltun:2015}
+to name just a few; we will, however, use the introduced, simple variant.
+
+\subsection{Pooling and Upsampling}
+
+% TODO cite
+In \cite{LeCunBoserDenkerHenderson:1989}, strided
+convolution was applied to subsample the input image; alternatively, max pooling
+\cite{ZhouChellappa:1988} computes the maximum value within non-overlapping windows.
+Today, max pooling is popular to incorporate robustness against noise and
+small transformations:
+
+% TODO cite
+\begin{definition}
+  A max pooling layer $\text{pool}_{K}$ takes as input a tensor
+  $x \in \mathbb{R}^{B \times C \times H \times W \times D}$
+  and computes a tensor of size $B \times C \times \frac{H}{K} \times \frac{W}{K} \times \frac{D}{K}$ as
+  \begin{align}
+    (\text{pool}_{K})_{b, c, i} = \max_{K(i_1 - 1) < j_1 \leq K i_1, \ldots, K (i_3 - 1) < j_3 \leq K i_3} x_{b, c, j}%,\quad 1 \leq i_1 \leq \frac{H}{K}, 1 \leq i_2 \leq \frac{W}{K}, 1 \leq i_3 \leq \frac{D}{K}
+  \end{align}
+  where $i = (i_1, i_2, i_3)$ and $j = (j_1, j_2, j_3)$ are multi-indices and
+  we assume $H$, $W$ and $D$ to be divisible by $K$.
+\end{definition}
+
+% TODO cite
+Pooling essentially computes the maximum value over non-overlapping $3$-dimensional cubes of
+edge length $K$, thereby reducing the spatial size of the input tensor.
+%Note that this definition can also be extended to pool not only the
+%spatial dimensions but also across the $C$ channels.
+Many other types of pooling
+have been proposed, see \cite{BoureauLeCun:2010} for a discussion and
+related work, and the idea has been used to incorporate invariances against
+other transformations -- such as rotations in 3D \cite{QiGuibas:2016,HedgeZadeh:2016}.
+
+Instead of reducing the size of the tensor, it is also interesting to spatially
+increase the size of the tensor. To this end, upsampling techniques from
+image processing are commonly used, for example using bilinear interpolation.
+Another option is deconvolution (or fractionally strided convolution)
+\cite{ZeilerFergus:2010,DumoulinVisin:2016}. Alternatively, max pooling can also
+be ``inverted'' resulting in unpooling layers \cite{ZeilerFergus:2014}.
+Instead, we follow \cite{OdenaDumoulinOlah:2016} and use simple nearest
+neighbor upsamling where each element is duplicated within fixed-sized
+windows to increase the spatial size:
+
+\begin{definition}
+  A nearest neighbor upsampling layer $\text{nnup}_{K}$ takes as input a
+  tensor $x \in \mathbb{R}^{B \times C \times H \times W \times D}$ and computes a tensor
+  of size $B \times C \times KH \times KW \times KD$ as
+  \begin{align}
+    (\text{nnup}(x)_{K})_{b, c, i} = x_{b, c, \ceil{\frac{i_1}{K}}, \ceil{\frac{i_2}{K}}, \ceil{\frac{i_3}{K}}}
+  \end{align}
+  for $1 \leq i_1 \leq KH, \ldots, 1 \leq i_3 \leq KD$.
+\end{definition}
+
+\begin{figure}
+  \centering
+  \begin{tikzpicture}
+    \node (x) at (1.25,0) {\small$x$};
+  
+    \node[fc,rotate=90,minimum width=2cm] (fc1) at (2.5,0) {\small$\text{fc}_{R, C_1}$};
+    \node[bias,rotate=90,minimum width=2cm] (b1) at (3.75,0) {\small$\text{bias}$};
+    \node[h,rotate=90,minimum width=2cm] (h1) at (5,0) {\small$h$};
+    \node[fc,rotate=90,minimum width=2cm] (fc2) at (6.25,0) {\small$\text{fc}_{C_1, C_2}$};
+    \node[bias,rotate=90,minimum width=2cm] (b2) at (7.5,0) {\small$\text{bias}$};
+    \node[h,rotate=90,minimum width=2cm] (h2) at (8.75,0) {\small$h$};
+    \node[fc,rotate=90,minimum width=2cm] (fc3) at (10,0) {\small$\text{fc}_{C_2, Q}$};
+    \node[bias,rotate=90,minimum width=2cm] (b3) at (11.25,0) {\small$\text{bias}$};
+    \node[h,rotate=90,minimum width=2cm] (h3) at (12.5,0) {\small$h$};
+  
+    \node (z) at (13.75,-2.5) {\small$z$};
+  
+    \node[h,rotate=90,minimum width=2cm] (h6) at (2.5,-2.5) {\small$h$};
+    \node[bias,rotate=90,minimum width=2cm] (b6) at (3.75,-2.5) {\small$\text{bias}$};
+    \node[fc,rotate=90,minimum width=2cm] (fc6) at (5,-2.5) {\small$\text{fc}_{C_1, R}$};
+    \node[h,rotate=90,minimum width=2cm] (h5) at (6.25,-2.5) {\small$h$};
+    \node[bias,rotate=90,minimum width=2cm] (b5) at (7.5,-2.5) {\small$\text{bias}$};
+    \node[fc,rotate=90,minimum width=2cm] (fc5) at (8.75,-2.5) {\small$\text{fc}_{C_2, C_1}$};
+    \node[h,rotate=90,minimum width=2cm] (h4) at (10,-2.5) {\small$h$};
+    \node[bias,rotate=90,minimum width=2cm] (b4) at (11.25,-2.5) {\small$\text{bias}$};
+    \node[fc,rotate=90,minimum width=2cm] (fc4) at (12.5,-2.5) {\small$\text{fc}_{Q, C_2}$};
+  
+    \node (rx) at (1.25,-2.5) {\small$\tilde{x}$};
+  
+    \draw[->] (x) -- (fc1);
+    \draw[->] (fc1) -- (b1);
+    \draw[->] (b1) -- (h1);
+    \draw[->] (h1) -- (fc2);
+    \draw[->] (fc2) -- (b2);
+    \draw[->] (b2) -- (h2);
+    \draw[->] (h2) -- (fc3);
+    \draw[->] (fc3) -- (b3);
+    \draw[->] (b3) -- (h3);
+    \draw[-] (h3) -- (13.75,0);
+    \draw[->] (13.75,0) -- (z);
+    \draw[->] (z) -- (fc4);
+    \draw[->] (fc4) -- (b4);
+    \draw[->] (b4) -- (h4);
+    \draw[->] (h4) -- (fc5);
+    \draw[->] (fc5) -- (b5);
+    \draw[->] (b5) -- (h5);
+    \draw[->] (h5) -- (fc6);
+    \draw[->] (fc6) -- (b6);
+    \draw[->] (b6) -- (h6);
+    \draw[->] (h6) -- (rx);
+
+    \node[rotate=90] (L) at (1.25, -1.25) {\small$\mathcal{L}(\tilde{x}, x)$};
+    \draw[-,dashed] (x) -- (L);
+    \draw[-,dashed] (rx) -- (L);
+  \end{tikzpicture}
+  \vskip 6px
+  \caption{A simple variant of a multi-layer perceptron based auto-encoder.
+  Both encoder (top) and decoder (bottom) consist of 3-layer perceptrons
+  taking an $R$-dimensional
+  input $x$. The parameters $C_1, C_2,$ and $Q$ can be chosen; $Q$ also
+  determines the size of the latent code $z$ and is usually chosen significantly
+  lower than $R$ such that the auto-encoder learns a dimensionality reduction.
+  The non-linearity $h$ is also not fixed and might be determined experimentally.
+  The reconstruction loss $\mathcal{L}(\tilde{x}, x)$ quantifies the quality of
+  the reconstruction $\tilde{x}$ and is minimized during training.}
+  \label{subfig:deep-learning-auto-encoder}
+\end{figure}
+
+\section{Auto-encoders}
+
+As examples we chose a popular class of (convolutional) neural networks: auto-encoders.
+These models were -- to the best of our knowledge --
+first introduced in \cite{RumelhartHintonWilliams:1986}
+but gained more attention with the use for pre-training deep neural networks
+\cite{HintonSalakhutdinov:2006,HintonOsinderoTeh:2006,ErhanBengioCourville:2010}:
+
+% TODO C_0 = R and C_3 = Q
+\begin{example}
+  The main goal of an auto-encoder is to reconstruct its input through a lower-dimensional
+  latent representation. Auto-encoders can be split into an encoder,
+  computing the mapping $z(x; w)$ from input $x$ to low-dimensional code $z$,
+  and a decoder, computing the reconstruction $\tilde{x}(z; w) \approx x$ from the latent
+  code $z$.
+  Encoder and decoder often ``mirror'' each other, \ie both can be implemented
+  using the same multi-layer perceptron as illustrated in
+  Figure \ref{subfig:deep-learning-auto-encoder}. Here, both
+  consist of three fully connected layers, each followed by a bias layer and a
+  non-linearity. The input $x \in \mathbb{R}^{R}$ is transformed to
+  a $Q \ll R$ dimensional latent code $z$ which itself is used to 
+  estimate a reconstruction $\tilde{x} \approx x$. The exact dimensionalities
+  $C_1$, $C_2$ and $Q$ as well as the used non-linearity $h$ are hyper-parameters
+  that can be adapted depending on the
+  application.
+\end{example}
+
+% TODO latent code with dimension Q!
+\begin{figure}
+  \centering
+  \begin{tikzpicture}
+    \node (x) at (1.25,0) {\small$x$};
+    
+    %\node[noise,rotate=90,minimum width=3.3cm] (noise1) at(1.25,0) {\small$\text{noise}_{\sigma^2}$};
+    \node[conv,rotate=90,minimum width=3.3cm] (conv1) at (2.5,0) {\small$\text{conv}_{1, C_1, K}$\,+\,$\text{bias}$};
+    %\node[bias,rotate=90,minimum width=3cm] (bias1) at (3.75,0) {$\text{bias}$};
+    \node[h,rotate=90,minimum width=3.3cm] (h1) at (3.75,0) {\small$h$};
+    \node[pool,rotate=90,minimum width=3.3cm] (pool1) at (5,0) {\small$\text{pool}_{2}$};
+    
+    \node[conv,rotate=90,minimum width=3.3cm] (conv2) at (6.25,0) {\small$\text{conv}_{C_1, C_2, K}$\,+\,$\text{bias}$};
+    %\node[bias,rotate=90,minimum width=3cm] (bias2) at (8.75,0) {$\text{bias}$};
+    \node[h,rotate=90,minimum width=3.3cm] (h2) at (7.5,0) {\small$h$};
+    \node[pool,rotate=90,minimum width=3.3cm] (pool2) at (8.75,0) {\small$\text{pool}_{2}$};
+    \node[view,rotate=90,minimum width=3.3cm] (view2) at (10,0) {\small$\text{view}_{B, C_3}$};
+    \node[fc,rotate=90,minimum width=3.3cm] (fc2) at (11.25,0) {\small$\text{fc}_{C_3,Q}$};
+    
+    \node (z) at (12.5,-3.75) {\small$z$};
+    
+    \node[h,rotate=90,minimum width=3.3cm] (h4) at (6.25,-3.75) {\small$h$};
+    %\node[bias,rotate=90,minimum width=3cm] (bias4) at (8.75,-3.75) {$\text{bias}$};
+    \node[conv,rotate=90,minimum width=3.3cm] (conv4) at (7.5,-3.75) {\small$\text{conv}_{C_2, C_1, K}$\,+\,$\text{bias}$};
+    \node[up,rotate=90,minimum width=3.3cm] (up4) at (8.75,-3.75) {\small$\text{nnup}_{2}$};
+    \node[view,rotate=90,minimum width=3.3cm] (view4) at (10,-3.75) {\small$\text{view}_{B, C_2, \frac{H}{4}, \frac{W}{4}, \frac{D}{4}}$};
+    \node[fc,rotate=90,minimum width=3.3cm] (fc4) at (11.25,-3.75) {\small$\text{fc}_{Q,C_3}$};
+    
+    \node[h,rotate=90,minimum width=3.3cm] (h5) at (2.5,-3.75) {\small$h$};
+    %\node[bias,rotate=90,minimum width=3cm] (bias5) at (3.75,-4) {$\text{bias}$};
+    \node[conv,rotate=90,minimum width=3.3cm] (conv5) at (3.75,-3.75) {\small$\text{conv}_{C_2, 1, K}$\,+\,$\text{bias}$};
+    \node[up,rotate=90,minimum width=3.3cm] (up5) at (5,-3.75) {\small$\text{nnup}_{2}$};
+    
+    \node (rx) at (1.25,-3.75) {\small$\tilde{x}$};
+    
+    %\draw[->] (x) -- (noise1);
+    \draw[->] (x) -- (conv1);
+    \draw[->] (conv1) -- (h1);
+    %\draw[->] (bias1) -- (h1);
+    \draw[->] (h1) -- (pool1);
+    
+    \draw[->] (pool1) -- (conv2);
+    \draw[->] (conv2) -- (h2);
+    %\draw[->] (bias2) -- (h2);
+    \draw[->] (h2) -- (pool2);
+    \draw[->] (pool2) -- (view2);
+    \draw[->] (view2) -- (fc2);
+    
+    \draw[-] (fc2) -- (12.5,0);
+    \draw[->] (12.5,0) -- (z);
+    \draw[->] (z) -- (fc4);
+    
+    \draw[->] (fc4) -- (view4);
+    \draw[->] (view4) -- (up4);
+    \draw[->] (up4) -- (conv4);
+    %\draw[->] (conv4) -- (bias4);
+    \draw[->] (conv4) -- (h4);
+    
+    \draw[->] (h4) -- (up5);
+    \draw[->] (up5) -- (conv5);
+    \draw[->] (conv5) -- (h5);
+    %\draw[->] (bias5) -- (h5);
+    \draw[->] (h5) -- (rx);
+
+    \node[rotate=90] (L) at (1.25, -1.875) {\small$\mathcal{L}(\tilde{x}, x)$};
+    \draw[-,dashed] (x) -- (L);
+    \draw[-,dashed] (rx) -- (L);
+  \end{tikzpicture}
+  \vskip 6px
+  % TODO short caption
+  \caption{Illustration of a convolutional auto-encoder consisting of encoder (top)
+  and decoder (bottom). Both are modeled using two stages of convolutional
+  layers each followed by a bias layer and a non-linearity layer. The encoder uses
+  max pooling to decrease the spatial size of the input; the decoder uses upsampling
+  to increase it again. The number of channels $C_1$, $C_2$ and $C_3$ as well as
+  the size $Q$ are hyper parameters. We assume the input to comprise one channel.
+  Again, the reconstruction loss $\mathcal{L}(\tilde{x}, x)$ quantifies the quality of
+  the reconstruction and is minimized during training.}
+  \label{fig:deep-learning-convolutional-auto-encoder}
+\end{figure}
+
+When translating auto-encoders to the convolutional case, we usually apply several
+stages of convolutional layers (often followed by non-linearities and pooling).
+However, to compute a one-dimensional latent code $z$, the output tensor from
+the final pooling layer needs to be reshaped. 
+
+\begin{definition}
+  A view layer
+  $\text{view}_{B', C', H', W', D'}$ views a given
+  input tensor of size $B \times C \times H \times W \times D$ as a tensor of
+  size $B' \times C' \times H' \times W' \times D'$ given that $BCHWD = B'C'H'W'D'$.
+\end{definition}
+
+In practice, a tensor is always implemented using a one-dimensional array such that
+it represents a contiguous set of memory blocks, \eg
+\begin{align}
+  t_{i_1, i_2, i_3, i_4, i_5} := \hat{t}_{(((i_1C + i_2)H + i_3)W + i_4)D + i_5}
+\end{align}
+for $t \in \mathbb{R}^{B \times C \times H \times W \times D}$ and $\hat{t} \in \mathbb{R}^R$
+with $R = BCHWD$ the underlying one-dimensional tensor.
+Thus, reshaping may not involve any actual data movement
+but just represents a different ``view'' on the data.
+
+% TODO coherent auto-encoder and auto-encoder
+% TODO details on shapes
+\begin{example}
+  \label{ex:deep-learning-convolutional-auto-encoder}
+  The example of a general auto-encoder can be extended to the convolutional
+  case. Instead of a succession of fully connected layers
+  followed by bias and non-linearity layers, the encoder consists of a sequence of 
+  convolutional layers followed by bias layers, non-linearity layers and max
+  pooling layers. The decoder, again, mirrors the encoder while replacing
+  max pooling layers with upsampling layers. The latent code is computed using a fully
+  connected layer. The full model is illustrated in Figure \ref{fig:deep-learning-convolutional-auto-encoder}.
+\end{example}
+
+In both examples, the mappings $x \mapsto z(x;w)$ and
+$z \mapsto \tilde{x}(z;w) \approx x$ are deterministic.
+In Chapter \ref{ch:shape-prior} we will see that auto-encoders can also be
+re-formulated in a probabilistic, non-deterministic way \cite{KingmaWelling:2013}
+where instead of direct mappings, the corresponding probability distributions $q(z | x)$
+and $p(x|z)$ are modeled. We will use such a model to learn our shape prior
+in Chapter \ref{ch:shape-prior}.
+
+\section{Training}
+
+Training (convolutional) neural networks involves adjusting the collected weights
+$w$ of the constructed model $y(x;w)$ in order to approximate an
+unknown target function. The target function, however,
+is often known for individual input values
+$\mathcal{X} = \{x_1,\ldots,x_N\}$, \ie $y(x_n;w) \overset{!}{=} y^*_n$.
+In this supervised case, \ie where both inputs $x_n$ and targets $y_n^*$
+are given, training usually proceeds in two steps: formulating a loss function
+$\mathcal{L}(y(x_n;w),y^*_n)$ to measure the quality of approximation,
+and selecting an appropriate algorithm to minimize it.
+
+\subsection{Losses}
+\label{sec:deep-learning-losses}
+
+Revisiting our approach to Problem \ref{problem}, it has the form of the more general problem
+$\argmin_y - \ln p(y|x)$ which we will use to derive two loss functions by considering
+different parametric forms of $p(y | x)$.
+In particular, we introduce both the binary cross entropy error
+as well as the sum-of-squared loss; a more detailed discussion can be found in
+\cite[Chapter~6]{Bishop:1995} or \cite[Section~6.2]{GoodfellowBengioCourville:2016}.
+
+% TODO cite
+\begin{example}
+  \label{ex:deep-learning-bce}
+  Considering binary classification, we are interested in the posterior 
+  $p(y | x_n)$. The neural network
+  $y(x_n;w)$ models the probability of class one, \ie $y(x_n;w) \approx p(y = 1|x_n)$
+  such that $p(y = 0 | x_n) = 1 - p(y = 1 | x_n)$. The distribution of $p(y = y_n^* | x_n)$,
+  $y_n^* \in \{0,1\}$,
+  can then be written as Bernoulli distribution:
+  \begin{align}
+    p(y = y^* | x_n) = y(x_n;w)^{y_n^*} (1 - y(x_n;w))^{1 - y_n^*}.
+  \end{align}
+  Taking the negative log-likelihood leads to the binary cross entropy error:
+  \begin{align}
+    \mathcal{L}_{\text{BCE}}(w) = -\ln p(y = y_n^* | x_n) = - y_n^* \ln y(x_n;w) - (1 - y_n^*) \ln (1 - y(x_n;w))
+  \end{align}
+  where we directly wrote $\mathcal{L}_{\text{BCE}}$ in terms of the weights $w$ to
+  be found.
+\end{example}
+
+%The above loss is known as the binary cross entropy loss:
+Overall, using $y(x; w)$ to model binary distributions, \ie Bernoulli distributions,
+the negative log-likelihood leads to the binary cross entropy error.
+We can formalize this in the following two definitions:
+
+\begin{definition}
+  \label{def:deep-learning-bernoulli}
+  Let $y \in \{0,1\}$ be a random variable; then $y$ is distributed
+  according to a Bernoulli distribution, $y \sim \Ber(y;\theta)$, with parameter
+  $\theta$ if the
+  probability density function takes the form:
+  \begin{align}
+    p(y) = \theta^{y} (1 - \theta)^{1 - y}.
+  \end{align}
+\end{definition}
+
+\begin{definition}
+  Given a set of samples with associated labels $\{x_n, y^*_n\}_{n = 1}^N$,
+  $y^*_n \in \{0,1\}$, and a neural network $y(x;w)$ modeling the posterior
+  distribution $y(x;w) \approx p(y = 1 | x)$,
+  the binary cross entropy error $\mathcal{L}_{\text{BCE}}(w)$ is defined as
+  the negative log-likelihood assuming the samples $x_n$ are independent:
+  \begin{align}
+    \mathcal{L}_{\text{BCE}}(w) = - \sum_{n = 1}^N y_n^* \ln y(x_n;w) + (1 - y_n^*) \ln (1 - y(x_n;w))
+  \end{align}
+\end{definition}
+
+For regression tasks, $p(y | x)$ cannot be modeled as discrete distribution. In
+this case, $p(y | x)$ is usually modeled as Gaussian distribution which,
+following the same derivation as in Example \eqref{ex:deep-learning-bce},
+leads to the sum-of-squared loss:
+
+\begin{definition}
+  \label{def:deep-learning-gaussian}
+  Let $y \in \mathbb{R}$ be a random variable; then $y$ is distributed according
+  to a Gaussian distribution, \ie $y \sim \mathcal{N}(y;\mu,\sigma^2)$,
+  with mean $\mu$ and variance $\sigma^2$ if its probability density function is
+  given by
+  \begin{align}
+    p(y) = \frac{1}{\sqrt{2\pi}\sigma}\exp\left(-\frac{(y - \mu)^2}{\sigma^2}\right).
+  \end{align}
+\end{definition}
+
+% TODO cite
+% TODO ground truth or target?
+%\begin{example}
+%  In the case of regression, $p(y | x)$ represents a continuous probability
+%  distribution with corresponding ground truth value $y^* \in \mathbb{R}$.
+%  Assuming a Gaussian probability distribution, the neural network $y(x;w)$
+%  represents the mean, \ie $p(y | x) = \mathcal{N}(y | y(x;w), \sigma^2)$
+%  (\cf Definition \ref{def:deep-learning-gaussian}). Then the negative log-
+%  probability leads to the so-called sum-of-squared loss:
+%  \begin{align}
+%    \mathcal{L}_{\text{SSE}}(w) = \sum_{n = 1}^N \underbrace{\ln 2\pi}_{=\const} + \ln \sigma^2 + \frac{(y_n^* - y(x_n;w))^2}{\sigma^2}.
+%  \end{align}
+%  For simplicity, the constant term is usually dropped and $\sigma^2 = 1$
+%  is used as both do not change the minimization problem.
+%\end{example}
+
+\begin{definition}
+  Given a set of samples $\{x_n,y^*_n\}_{n = 1}^N$ with real-valued labels,
+  $y^*_n \in \mathbb{R}$, and a neural network $y(x;w)$ modeling the mean
+  of a Gaussian distribution, the sum-of-squared loss $\mathcal{L}_{\text{SSE}}(w)$
+  is defined as the corresponding negative log-likelihood assuming independent samples:
+  \begin{align}
+    \mathcal{L}_{\text{SSE}}(w) = \sum_{n = 1}^N \ln 2\pi + \ln \sigma^2 + \frac{(y_n^* - y(x_n;w))^2}{\sigma^2}.
+    \label{eq:deep-learning-sse}
+  \end{align}
+\end{definition}
+
+% TODO layers for losses, or at least symbols?
+In Equation \eqref{eq:deep-learning-sse}, we kept both the constant term and
+$\sigma^2$ -- which are usually dropped for convenience -- as it is also possible
+to let the neural network model both the mean and its variance. Both, the binary
+cross entropy loss and the sum-of-squared loss are, in practice, often applied
+per voxel for dense prediction tasks, \ie when modeling a distribution per voxel.
+Also note that
+we usually assume continuously differentiable losses.
+
+\subsection{Stochastic Gradient Descent}
+
+% TODO cite
+After having set up the network $y(x;w)$, acquired a set of samples $\{x_n,y^*_n\}_{n = 1}^N$
+and chosen a loss $\mathcal{L}(w)$, gradient-based optimization algorithms usually
+proceed as follows \cite[Section~2.2]{NocedalWright:2006}.
+Given an initial value of the weights $w^{(0)}$, we iteratively compute weight
+updates $\Delta w^{(t)}$ defining a sequence
+\begin{align}
+  w^{(t + 1)} = w^{(t)} + \gamma \Delta w^{(t)}
+\end{align}
+using step size -- or learning rate -- $\gamma$.
+The overall goal is to find a stationary point corresponding to
+a (local) minimum:
+
+\begin{definition}
+  We call $w^*$ a stationary point of $\mathcal{L}$, if $\nabla \mathcal{L}(w^*) = 0$.
+\end{definition}
+
+\begin{lemma}
+  \label{lemma:deep-learning-necessary-condition}
+  If $w^*$ is a local minimum of $\mathcal{L}$,
+  then $\nabla \mathcal{L}(w^*) = 0$.
+\end{lemma}
+
+\begin{proof}
+  A proof can be found in \cite[Theorem~2.2]{NocedalWright:2006}.
+\end{proof}
+
+In deep learning, we usually do not get any guarantees beyond the first-order
+necessary condition in Lemma \ref{lemma:deep-learning-necessary-condition} as
+neural networks are highly non-convex and using
+second-order information, \ie the Hessian of $\mathcal{L}$, is computationally
+expensive.
+
+% TODO sgd for neural networks
+% TODO cite
+Gradient descent is one of the best known
+first-order optimization algorithms and has been studied extensively
+in the context of neural networks \cite{Bottou:2012}.
+The underlying idea is to move in the direction of the negative gradient; this means
+\begin{align}
+  \Delta w^{(t)} = -\nabla \mathcal{L}(w^{(t)}).
+\end{align}
+Gradient descent, as depicted in Algorithm
+\ref{alg:deep-learning-gradient-descent} is the basis for
+many different optimization algorithms used in deep learning,
+\eg \cite{KingmaBa:2014,Zeiler:2012}.
+
+\begin{algorithm}[t]
+	\begin{algo}{Gradient Descent}{
+	\small 
+	\label{alg:deep-learning-gradient-descent}
+	\qinput{initial weights $w^{(0)}$, number of iterations $T$}
+	\qoutput{final weights $w^{(T)}$}
+	}
+		\qfor $t = 0$ \qto $T - 1$\\
+			estimate $\nabla \mathcal{L}(w^{(t)})$\\
+			compute $\Delta w^{(t)} = - \nabla \mathcal{L}(w^{(t)})$\label{lin:deep-learning-delta-w}\\
+			select learning rate $\gamma$\\
+			$w^{(t + 1)} := w^{(t)} + \gamma \Delta w^{(t)}$\qrof\\
+		\qreturn $w^{(T)}$
+	\end{algo}
+	% TODO short caption
+	\caption[]{The general gradient descent algorithm; different choices of
+	the learning rate $\gamma$ and the estimation technique for $\nabla\mathcal{L}(w)$
+	may lead to different implementations.}
+\end{algorithm}
+
+% TODO loss depending on w/y/y^*
+The difficulties of implementing Algorithm \ref{alg:deep-learning-gradient-descent}
+include choosing the learning rate~$\gamma$ and estimating $\nabla \mathcal{L}(w^{(t)})$
+in each iteration.
+The learning rate is usually set experimentally and might decrease automatically
+during training. The gradient $\nabla \mathcal{L}(w^{(t)})$ can be estimated
+over the whole dataset, \ie
+\begin{align}
+  \nabla \mathcal{L}(w^{(t)}) \approx \sum_{n = 1}^N \nabla \mathcal{L}(y(x_n; w^{(t)}), y^*_n).
+\end{align}
+In practice, however, this is computationally too expensive, even for datasets of
+moderate size. A well-studied alternative is stochastic gradient descent
+where, in each iterations, the gradient is estimated on a random subset of the samples:
+
+\begin{definition}
+  \label{def:deep-learning-sgd}
+  Stochastic gradient descent is an implementation of Algorithm
+  \ref{alg:deep-learning-gradient-descent} where the gradient $\nabla\mathcal{L}(w^{(t)})$
+  is estimated on a randomly chosen subset $B \subseteq \{1,\ldots,N\}$ of samples, \ie
+  \begin{align}
+    \nabla \mathcal{L}(w^{(t)}) \approx \sum_{n \in B} \nabla \mathcal{L}(y(x_n;w^{(t)}), y^*_n)
+  \end{align}
+  and the learning rate $\gamma = \gamma^{(t)}$ decreases during the iterative
+  process:
+  \begin{align}
+    \gamma^{(t)} = \max(\gamma_{\min}, \gamma^{(0)} \alpha_\gamma^{\floor{\frac{t}{T_\gamma}}})\label{eq:deep-learning-learning-rate}
+  \end{align}
+  where $\gamma^{(0)}$ is given and $\alpha_\gamma \in (0, 1)$,
+  $T_\gamma \in \mathbb{N}$ define an exponential decay.
+\end{definition}
+
+% TODO cite other approaches for \gamma
+The subset $B$ is also called mini-batch; in the following we will also
+use $B$ as the size of this mini-batch. This directly relates to our standard
+tensor size for multi-channel volumes where $B$ represents the first dimension.
+The parameters $\gamma^{(0)}$ and $T_\gamma$ are usually set experimentally.
+%For $\gamma^{(0)}$ this is possible by monitoring the gradients $\nabla \mathcal{L}(w^{(t)})$
+%for the first few iterations -- in practice, the gradients explode when $\gamma^{(0)}$
+%is chosen too large.
+
+%\subsubsection{Adaptive Gradient Methods}
+
+% TODO details & cite
+%Based on stochastic gradient descent and the related problem of choosing the
+%learning rate, several so-called adaptive gradient methods have been proposed
+%\cite{KingmaBa:2014,DuchiSinger:2011,Zeiler:2012}. However, we resorted to
+%standard stochastic gradient descent as go-to optimization algorithm
+%based on recent discussions concerning the benefit of adaptice gradient
+%methods \cite{WilsonRecht:2017}.
+
+\subsubsection{Momentum}
+
+% TODO cite
+Gradient descent is well known to have difficulties with highly non-linear
+objective functions including local minima, plateaus as well as steep areas.
+Common problems include slow convergence along plateaus or oscillations near
+steep areas. A popular approach introduces a so-called momentum term
+\cite[Section~7.5]{Bishop:1995} to replace line \ref{lin:deep-learning-delta-w}
+in Algorithm \ref{alg:deep-learning-gradient-descent} with
+\begin{align}
+  \Delta w^{(t)} = - \beta \Delta w^{(t-1)} - \nabla \mathcal{L}(w^{(t)})
+\end{align}
+where $\beta$ is the momentum parameter. It controls how fast the optimization
+scheme adapts to changes in the weight landscape such that oscillations
+and slow convergence can be avoided. In practice, the momentum parameter is
+often increased during training in analogy to Equation \eqref{eq:deep-learning-learning-rate}
+using an $\alpha_{\beta} > 1$.
+
+\subsection{Weight Initialization}
+
+Stochastic gradient descent is crucially dependent on a good initial guess for~$w^{(0)}$.
+In practice, weight initialization
+usually follows a simple scheme: a hyper parameter
+$\sigma$ is chosen (either globally or per layer) and the weights are initialized
+as random values from $U[-\sigma,\sigma]$ or $\mathcal{N}(0, \sigma)$. While
+$\sigma$ can be chosen by hand (typically in the order of $\sigma \approx 0.05$),
+\cite{GlorotBengio:2010} suggests choosing
+$\sigma = \frac{\sqrt{6}}{\sqrt{\Cin + \Cout}}$ for a fully connected layer
+$\text{fc}_{\Cin, \Cout}$. This scheme can intuitively be applied to convolutional
+layers, as well, and performs well in practice.
+
+\subsection{Error Backpropagation}
+\label{sec:deep-learning-error-backpropagation}
+
+After introducing stochastic gradient descent and discussing weight initialization,
+the remaining problem is the computation of $\nabla \mathcal{L}(y(x_n;w^{(t)}), y^*_n)$
+for an individual sample $x_n$ and its label $y^*_n$. The error backpropagation
+algorithm \cite{RumelhartHintonWilliams:1986} solves this problem by
+recursively applying the chain rule; we follow \cite[Section~4.8]{Bishop:1995}
+to introduce the main idea as example before stating the general algorithm.
+
+% TODO chain rule
+% TODO correct indices
+\begin{example}
+  Considering Example \ref{ex:deep-learning-mlp}, we use 
+  $\mathcal{L}_n := \mathcal{L}(y(x_n;w^{(t)}), y^*_n)$ for simplicity and
+  neglect the iteration $w = w^{(t)}$ for notational convenience. Exemplary taking
+  an individual weight $w^{(l)}_{i,j}$ in layer $l$ which is involved in computing
+  the output $y_i^{(l)}$ according to Equation \eqref{eq:deep-learning-mlp}, the
+  chain rule applied to $\mathcal{L}_n$ yields:
+  \begin{align}
+    \frac{\partial \mathcal{L}_n}{\partial w^{(l)}_{i,j}}
+    = \frac{\partial \mathcal{L}_n}{\partial y_i^{(l)}}\frac{y_i^{(l)}}{\partial w_{i,j}^{(l)}}.
+    \label{eq:deep-learning-backprop-mlp}
+  \end{align}
+  To compute the first part, the chain rule can be applied recursively to give:
+  \begin{align}
+    \frac{\partial \mathcal{L}_n}{\partial y_i^{(l)}} &= \frac{\partial \mathcal{L}_n}{\partial y^{(L)}} \frac{\partial y^{(L)}}{\partial y_i^{(l)}}
+    = \ldots = \frac{\partial \mathcal{L}_n}{\partial y^{(L)}} \left[\prod_{l' = l + 2}^{L} \frac{\partial y^{(l')}}{\partial y^{(l' - 1)}}\right] \frac{\partial y^{(l + 1)}}{\partial y_i^{(l)}}
+    % &= \frac{\partial \mathcal{L}_n}{\partial y^{(L)}} \frac{\partial y^{(L)}}{\partial y^{(L - 1)}} \frac{\partial y^{(L - 1)}}{\partial y_i^{(l)}} = \ldots\\
+    %&= \frac{\partial \mathcal{L}_n}{\partial y^{(L)}} \prod_{l' = l + 2}^{L - 1} \frac{\partial y^{(l')}}{\partial y^{(l' - 1)}} \frac{\partial y^{(l + 1)}}{\partial y_i^{(l)}}.
+    \label{eq:deep-learning-backpropr-1}
+  \end{align}
+  Here, we exploit the hierarchical structure of the multi-layer perceptron, \ie
+  $w_{i,j}^{(l)}$ is involved in computing $y_i^{(l)}$ which itself is the input for
+  $y^{(l + 1)}$ and so forth. The second part of Equation \eqref{eq:deep-learning-backprop-mlp}
+  can easily be computed from Equation \eqref{eq:deep-learning-mlp}:
+  \begin{align}
+    \frac{\partial y_i^{(l)}}{\partial w_{i,j}^{(l)}}
+    &= \frac{\partial h (y^{(l - 1)} (w^{(l)})^T + b^{(l)})_i}{\partial w_{i,j}^{(l)}}\\
+    \label{eq:deep-learning-backpropr-2}
+    &= h'(y^{(l - 1)} (w^{(l)})^T + b^{(l)})_i \frac{\partial y^{(l - 1)} (w^{(l)})^T + b^{(l)}}{\partial w_{i,j}^{(l)}}
+  \end{align}
+  where both parts can easily be computed given the input $y^{(l - 1)}$ to layer
+  $l$ and the derivative $h'$ of the non-linearity $h$. Overall, the derivatives
+  can be calculated easily if, for each layer, we are able to compute its
+  derivatives with respect to its input and with respect to its weights.
+\end{example}
+
+The above successive application of the chain rule can be formalized into
+the error backpropagation algorithm (see \cite[Section~4.8]{Bishop:1995}
+and \cite[Section~6.5]{GoodfellowBengioCourville:2016} for details and
+illustrations):
+
+% TODO introduce nodes as outputs as layers more detailed
+\begin{algorithm}[h]
+  \small
+  \begin{enumerate}[(1)]
+    \item For a sample $(x_n ,y^*_n)$, propagate the input $x_n$ through the
+    network to compute the outputs $(v_{i_1}, \ldots, v_{i_{|V|}})$ (in topological order).
+    \vspace{-6px}
+    %\begin{enumerate}[(a)]
+    %  \item Given a topological sort $V = (v_{i_1},\ldots,v_{i_{|V|}})$,
+    %  sequentially compute the layers' outputs, also denoted by $v_{i_j}$.
+    %  \item Then $y(x_n;w) = v_{i_{|V|}}$ is the network's output.
+    %\end{enumerate}
+    \item Compute the loss $\mathcal{L}_n := \mathcal{L}(v_{i_{|V|}}, y_n^*)$
+    and its gradient
+    \begin{align}
+      \frac{\partial \mathcal{L}_n}{\partial v_{i_{|V|}}}.
+    \end{align}
+    \vspace{-6px}
+    \item For each $j = |V|,\ldots,1$ compute
+    \begin{align}
+      \frac{\partial \mathcal{L}_n}{\partial w_j} =
+      \frac{\partial \mathcal{L}_n}{\partial v_{i_{|V|}}} \prod_{k = j + 1}^{|V|} \frac{\partial v_{i_k}}{\partial v_{i_{k - 1}}}
+      \frac{\partial v_{i_j}}{\partial w_j}.
+    \end{align}
+    where $w_j$ refers to the weights in node $i_j$.
+    \vspace{-12px}
+  \end{enumerate}
+  \caption{Error backpropagation algorithm for a layered neural network
+  represented as computation graph $G = (V,E)$ as in
+  Definition \ref{def:deep-learning-graph}.}
+\end{algorithm}
+
+\subsection{Regularization}
+
+% TODO pre-training
+As for any other machine learning technique, regularization plays an important
+role in deep learning, especially as deep neural networks are known to be
+universal approximators \cite{HornikStinchcombeWhite:1989} and tend to overfit
+the given data \cite{Bengio:2009}. A general form of regularization
+augments the loss $\mathcal{L}$
+using a weighted regularization term \cite[Section~9.2]{Bishop:1995}:
+\begin{align}
+  \hat{\mathcal{L}}(w) = \mathcal{L}(w) + \kappa \mathcal{P}(w)
+\end{align}
+Often, $\mathcal{P}(w)$ is defined as $L_p$ norm \cite{Bishop:1995}, \eg
+$\mathcal{P}(w) = \|w\|_2^2$ for the Euclidean norm -- this regularization is
+also referred to as weight decay as, neglecting $\mathcal{L}(w)$, the weights
+will tend exponentially towards zero \cite[Section~9.2]{Bishop:1995}.
+
+In contrast to explicit regularization, researchers are commonly using 
+implicit forms of regularization. Among these are early
+stopping \cite[Section~9.2]{Bishop:1995}, unsupervised
+pre-training \cite{ErhanBengioCourville:2010},
+batch normalization \cite{IoffeSzegedy:2015}, dropout
+\cite{SrivastavaHinton:2014} and data augmentation
+\cite[Section~7.4]{GoodfellowBengioCourville:2016}. In the following,
+we will discuss some of them in more detail.
+
+\subsubsection{Early Stopping}
+
+% TODO wording
+A neural network is said to overfit to a training set if the training loss
+is particularly low while the loss on an held-out validation set is comparably large.
+During training, overfitting occurs at the point when the training loss continues
+to decrease while the loss on the validation set starts increasing again.
+Therefore, it seems reasonable to stop training as soon as the validation loss
+increases again -- this method is called early stopping \cite[Section~9.2]{Bishop:1995}.
+The network can then be re-trained on the full data for the same number
+of iterations.
+
+\subsubsection{Batch Normalization}
+
+% TODO cite
+Batch normalization \cite{IoffeSzegedy:2015} was not explicitly introduced
+as regularization technique but to simplify training. To this end, it is worth
+considering intermediate layers during training -- \ie the layers
+$y^{(l)}$ for $1 < l < L$ in the formalism of the multi-layer perceptron
+of Example \ref{ex:deep-learning-mlp}. During training, the distribution of the values
+in one of these layers is not supposed to change significantly as subsequent
+layers assume them to be fixed for a local gradient descent step.
+Batch normalization tries to control these distributions
+through normalization. We directly introduce the ``convolutional'' variant:
+
+\begin{remark}
+  A batch normalization layer $\text{bn}$ that follows a convolutional layer
+  takes as input a tensor $x \in \mathbb{R}^{B \times C \times H \times W \times D}$
+  and computes
+  \begin{align}
+    (\text{bn}(x))_{b,c,i} = w_c \frac{x_{b,c,i} - \mu_c}{\sqrt{\sigma^2_c + \epsilon}} + b_c
+    \label{eq:deep-learning-bn}
+  \end{align}
+  where $i = (i_1, i_2, i_3)$, $\epsilon > 0$ is small, $w, b \in \mathbb{R}^{C}$ 
+  are weight parameters, and
+  \begin{align}
+    \mu_c &= \frac{1}{BHWD}\sum_{b = 1}^B\sum_{i_1 = 1}^H\sum_{i_2 = 1}^W\sum_{i_3 = 1}^D x_{b, c, i}
+    \\%\quad\text{ and }\quad
+    \sigma^2_c &= \frac{1}{BHWD}\sum_{b = 1}^B\sum_{i_1 = 1}^H\sum_{i_2 = 1}^W\sum_{i_3 = 1}^D (x_{b, c, i} - \mu_c)^2.
+  \end{align}
+\end{remark}
+
+Intuitively, batch normalization normalizes the individual channels of the input
+tensor by the mean and variance over the mini-batch and all spatial dimensions.
+The output values would then be distributed
+according to a unit Gaussian. However, this would be a constraint on what
+the preceding convolutional layer can represent, \eg it would not be able
+to compute the identity of its inputs. Therefore, Ioffe and Szegedy \cite{IoffeSzegedy:2015}
+introduce the weights $w$ and $b$ allowing to shift and scale the unit Gaussian.
+The batch normalization layer is usually added
+after a convolutional layer but before the corresponding non-linearity layer.
+Due to Equation \eqref{eq:deep-learning-bn}, bias layers can be omitted.
+For fully connected layers, batch normalization usually normalizes all values
+independently \cite{IoffeSzegedy:2015}.
+
+%\begin{figure}
+%  \centering
+%  \begin{tikzpicture}
+%    \node (x) at (0, 0) {$x$};
+%    \node[conv,rotate=90,minimum width=3cm] (conv1) at (1.25,0) {$\text{conv}_{1, C_1, K}$};
+%    \node[bn,rotate=90,minimum width=3cm] (bn1) at (2.5,0) {$\text{bn}$};
+%    \node[h,rotate=90,minimum width=3cm] (h1) at (3.75,0) {$h$};
+%    \node[pool,rotate=90,minimum width=3cm] (pool1) at (5,0) {$\text{pool}_{2}$};
+%    \node (y) at (6.25, 0) {$y$};
+    
+%    \draw[->] (x) -- (conv1);
+%    \draw[->] (conv1) -- (bn1);
+%    \draw[->] (bn1) -- (h1);
+%    \draw[->] (h1) -- (pool1);
+%    \draw[->] (pool1) -- (y);
+%  \end{tikzpicture}
+%  \vskip 6px
+%  % TODO short caption
+%  \caption[]{Illustration of}
+%  \label{fig:deep-learning-batch-normalization}
+%\end{figure}
+
+%\begin{example}
+%  Considering Example \ref{ex:deep-learning-convolutional-auto-encoder}
+%  and associated Figure \ref{fig:deep-learning-convolutional-auto-encoder},
+%  batch normalization layers are included after the convolutional layers,
+%  replacing the bias layers, but before the non-linearity
+%  layers as exemplarily illustrated in
+%  Figure \ref{fig:deep-learning-batch-normalization}.
+%  These are our basic building blocks for convolutional auto-encoders.
+%\end{example}
+
+\subsection{Data Augmentation}
+\label{sec:deep-learning-augmentation}
+
+Data augmentation, see \cite[Section~7.4]{GoodfellowBengioCourville:2016}, 
+describes the practice of artificially generating new training samples
+from existing ones using random transformations in order to
+incorporate invariances to these transformations. Apart from different noise models,
+color transformations (for images)
+as well as geometric transformations including translations, rotations,
+shear \etc are popular. This also generalizes to our case of deep learning
+in 3D where \eg rotational invariance is desired \cite{QiGuibas:2016,HedgeZadeh:2016}.
+
+\section{Discussion}
+
+% TODO
+Unfortunately, the scope of this thesis does not allow an extensive discussion
+of recent developments in deep learning. Most of the presented
+approaches -- except for \eg batch normalization, the introduced
+weight initialization scheme or deconvolution/upsampling -- have been used for
+several decades already, at least in similar forms. However, many interesting
+ideas have only been proposed recently and, as a result, deep learning has 
+found wide applicability in computer vision. Therefore, we refer the reader
+to some recent surveys and textbooks: 
+\cite{Schmidhuber:2014,WangRajXing:2017,Li:2017,
+BengioCourvilleVincent:2012,LeCunBengioGeoffrey:2015} and
+\cite{GoodfellowBengioCourville:2016}. 
+
+Although we only introduced the basic concepts of convolutional neural networks,
+these have been shown to be sufficient to tackle complex 3D tasks, including
+shape completion \cite{FirmanBrostow:2016,SmithMeger:2017,DaiNiessner:2016,
+SharmaFritz:2016,RezendeHeess:2016,FanSuGuibas:2016} and generative
+shape modeling \cite{SmithMeger:2017,GirdharGupta:2016,
+BrockWeston:2016,WuSongXiao:2015,WuTenenbaum:2016}. Additionally,
+computational resources are still a limiting factor for convolutional
+neural networks in 3D; more complex networks are very difficult to train,
+especially in high resolutions. Therefore, some works
+also introduced sparse variants of the discussed concepts \cite{WangTong:2017,
+RieglerGeiger:2016,RieglerGeiger:2017,TatarchenkoBrox:2017,LiGuibas:2016,
+EngelckePosner:2017,Graham:2015}. The introduced layers, due to their
+simplicity, are also available in most deep learning frameworks allowing to
+easily reproduce and judge the presented experiments. Finally, convolutional
+auto-encoders, as introduced in Example \ref{ex:deep-learning-convolutional-auto-encoder},
+can easily be ``upgraded'' to powerful generative models such as variational
+auto-encoders \cite{KingmaWelling:2013,ImAhnMemisevicBengio:2017,
+JangGuPoole:2016,MaddisonMnihTeh:2016}. In the following chapters, we will
+discuss the use of variational auto-encoders for learning shape priors in more detail.

@@ -1,0 +1,115 @@
+\begin{figure}
+  \centering
+  \begin{subfigure}[t]{0.48\textwidth}
+    \begin{tikzpicture}
+      \begin{axis}[
+          % https://tex.stackexchange.com/questions/68577/compiling-a-document-with-pgfplots-processing-only-every-x-th-data-point
+          %each nth point=100,
+          filter discard warning=false,
+          unbounded coords=discard,
+          % https://tex.stackexchange.com/questions/13816/dimension-too-large-while-plotting-with-pgfplots
+          %restrict y to domain=0:0.1,
+          %restrict x to domain=0:250000,
+          %ymin=0,
+          ymax=0.4,
+          xmin=0,
+          xmax=250000,
+          %xticklabel={
+          %  \pgfmathparse{\tick/1000}
+          %  \pgfmathprintnumber{\pgfmathresult}k
+          %},
+          xtick={0,50000,100000,150000,200000,250000},
+          xticklabels={0,50k,100k,150k,200k,250k},
+          xticklabel style={
+            /pgf/number format/fixed
+          },
+          scaled x ticks=false,
+          yticklabel style={
+            /pgf/number format/fixed
+          },
+          scaled y ticks=false,
+          %x coord trafo/.code={\pgfmathparse{\pgfmathresult/1000}},
+          %xticklabel=\pgfmathprintnumber{\tick}k,
+          width=7.5cm,
+          height=5cm,
+          % https://tex.stackexchange.com/questions/48620/pgfplots-alignment-and-size-of-math-in-legend
+          legend cell align=left,
+        ]
+        
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ/easy_5/validation_mean.txt};
+        \addlegendentry{$\overline{\mu}$ (val)};
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ/easy_5/validation_var.txt};
+        \addlegendentry{$\exp\left(\frac{1}{2}\overline{l}\right)$ (val)};
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ/easy_5/validation_std.txt};
+        \addlegendentry{$|1 - \sqrt{\Var[\mu]}|$ (val)};
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ/easy_5/validation_abs.txt};
+        \addlegendentry{$\Abs$ (val)};
+      \end{axis}
+    \end{tikzpicture}
+  \end{subfigure}
+  \begin{subfigure}[t]{0.48\textwidth}
+    \begin{tikzpicture}
+      \begin{axis}[
+          % https://tex.stackexchange.com/questions/68577/compiling-a-document-with-pgfplots-processing-only-every-x-th-data-point
+          %each nth point=100,
+          filter discard warning=false,
+          unbounded coords=discard,
+          % https://tex.stackexchange.com/questions/13816/dimension-too-large-while-plotting-with-pgfplots
+          %restrict y to domain=0:0.1,
+          %restrict x to domain=0:250000,
+          %ymin=0,
+          ymax=0.5,
+          xmin=0,
+          xmax=250000,
+          %xticklabel={
+          %  \pgfmathparse{\tick/1000}
+          %  \pgfmathprintnumber{\pgfmathresult}k
+          %},
+          xtick={0,50000,100000,150000,200000,250000},
+          xticklabels={0,50k,100k,150k,200k,250k},
+          xticklabel style={
+            /pgf/number format/fixed
+          },
+          scaled x ticks=false,
+          yticklabel style={
+            /pgf/number format/fixed
+          },
+          scaled y ticks=false,
+          %x coord trafo/.code={\pgfmathparse{\pgfmathresult/1000}},
+          %xticklabel=\pgfmathprintnumber{\tick}k,
+          width=7.5cm,
+          height=5cm,
+          % https://tex.stackexchange.com/questions/48620/pgfplots-alignment-and-size-of-math-in-legend
+          legend cell align=left,
+          legend style={
+            anchor=north east,
+            at={(0.975,0.75)},
+          },
+        ]
+        
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ/easy_25/validation_mean.txt};
+        \addlegendentry{$\overline{\mu}$ (val)};
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ/easy_25/validation_var.txt};
+        \addlegendentry{$\exp\left(\frac{1}{2}\overline{l}\right)$ (val)};
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ/easy_25/validation_std.txt};
+        \addlegendentry{$|1 - \sqrt{\Var[\mu]}|$ (val)};
+        \addplot +[mark=none] table[ignore chars={(,)},col sep=comma] {data/experiments/2d/vae_occ/easy_25/validation_abs.txt};
+        \addlegendentry{$\Abs$ (val)};
+      \end{axis}
+    \end{tikzpicture}
+  \end{subfigure}
+  % TODO short caption
+  \caption{Absolute error \Abs, average $\overline{\mu}$ of the predicted means,
+  the corresponding standard deviation $\sqrt{\Var[\mu]}$ and the average
+  $\exp(\frac{1}{2}\overline{l})$ of the predicted standard deviations 
+  on the validation set for
+  \VAEs trained with $Q = 5$ (left) and $Q = 25$ (right). For the actually
+  observed standard deviation, we plot its deviation from $0$ for convenience,
+  \ie $|1 - \sqrt{\Var[\mu]}|$. We refer to
+  Equations \eqref{eq:shape-prior-monitor-mean-mean},
+  \eqref{eq:shape-prior-monitor-variance-mean} and \eqref{eq:shape-prior-monitor-mean-variance}
+  for details. Note that for $Q = 25$, the actual standard deviation
+  collapses to roughly $0.55$ such that $|1 - \sqrt{\Var[\mu]}|$ approaches
+  $\sim 0.45$ meaning that the unit Gaussian prior is not met.}
+  \label{fig:experiments-2d-vae-occ-5}
+\end{figure}

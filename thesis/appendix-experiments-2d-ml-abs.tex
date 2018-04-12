@@ -1,0 +1,143 @@
+\begin{figure}
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+        ybar stacked,
+        % https://tex.stackexchange.com/questions/119887/remove-the-scientific-notation-which-is-unreasonable
+        yticklabel style={
+          /pgf/number format/fixed,
+          /pgf/number format/precision=5
+        },
+        scaled y ticks=false,
+        %enlargelimits=0.15,
+        legend style={
+          at={(0.75,0.95)},
+          anchor=north west,
+        },
+        % https://tex.stackexchange.com/questions/48620/pgfplots-alignment-and-size-of-math-in-legend
+        legend cell align=left,
+        xtick={
+          1, 2,
+          3, 4, 5,
+          6, 7, 8,
+          9, 10, 11,
+          12, 13, 14, 15,
+          16, 17, 18, 19
+        },
+        xticklabels={
+          \PPCA\\$Q = 5$, \VAE\\$Q = 5$,
+          \ML \PPCA\\\easy, \ML \PPCA\\\moderate, \ML \PPCA\\\hard,
+          \AML \PPCA\\\easy, \AML \PPCA\\\moderate, \AML \PPCA\\\hard,
+          \ML \VAE\\\easy, \ML \VAE\\\moderate, \ML \VAE\\\hard,
+          \AML \VAE\\\easy, \AML \VAE\\\moderate, \AML \VAE\\\hard, \AML \VAE\\\hard *,
+          \EVAE\\\easy, \EVAE\\\moderate, \EVAE\\\hard, \EVAE\\\hard *,
+        },
+        x tick label style={text width=1.5cm,align=right},
+        ymin=0,
+        ymax=0.16,
+        width=15.5cm,
+        height=4cm,
+        enlarge x limits=0.06,
+        % https://tex.stackexchange.com/questions/271027/pgfplots-how-to-rotate-extra-x-tick-labels
+        x tick label style={
+          rotate=90,
+          anchor=east,
+        },
+      ]
+      
+      % AbsThr
+      \addplot coordinates {
+        (1, 0.0449326171875)
+        (2, 0.00318352)
+        %
+        (3, 0.0990908203125)
+        (4, 0.0997822265625)
+        (5, 0.0992470703125)
+        %
+        (6, 0.07406222)
+        (7, 0.07938213)
+        (8, 0.09560468)
+        % 
+        (9, 0.09885333)
+        (10, 0.09952964)
+        (11, 0.10259025)
+        %
+        (12, 0.03621944)
+        (13, 0.05189751)
+        (14, 0.10733886)
+        (15, 0.07285957)
+        %
+        (16, 0.0369839)
+        (17, 0.05154616)
+        (18, 0.10695919)
+        (19, 0.07254225)
+      };
+      \addlegendentry{\AbsThr}
+      
+      % Abs
+      \addplot coordinates {
+        (1, 0.05237) % 0.0973753175757)
+        (2, 0.00205) % 0.00515391)
+        %
+        (3, 0.03837) % 0.137378104094)
+        (4, 0.0382) % 0.13795854836)
+        (5, 0.03816) % 0.137437428765)
+        %
+        (6, 0.0296) % 0.10367236)
+        (7, 0.02646) % 0.10546739)
+        (8, 0.01173) % 0.10733372)
+        % 
+        (9, 0.02035) % 0.11928853)
+        (10, 0.0238) % 0.12332883)
+        (11, 0.0191) % 0.12160376)
+        %
+        (12, 0.0032) % 0.03942102)
+        (13, 0.0013) % 0.05316359)
+        (14, 0.004) % 0.11131828)
+        (15, 0.0016) % 0.07475822)
+        %
+        (16, 0.0018) % 0.03876815)
+        (17, 0.0021) % 0.05361402)
+        (18, 0.005) % 0.11190726)
+        (19, 0.00245) % 0.07497483)
+      };
+      % Abs
+     % \addplot coordinates {
+     %   (1, 0.0973753175757)
+     %   (2, 0.00515391)
+        %
+     %   (3, 0.137378104094)
+     %   (4, 0.13795854836)
+     %   (5, 0.137437428765)
+        %
+     %   (6, 0.10367236)
+     %   (7, 0.10546739)
+     %   (8, 0.10733372)
+        % 
+     %   (9, 0.11928853)
+     %   (10, 0.12332883)
+     %   (11, 0.12160376)
+        %
+     %   (12, 0.03942102)
+     %   (13, 0.05189751)
+     %   (14, 0.10733886)
+     %   (15, 0.07285957)
+        %
+     %   (16, 0.0369839)
+     %   (17, 0.05361402)
+     %   (18, 0.11190726)
+     %   (19, 0.07497483)
+     % };
+      \addlegendentry{\Abs}
+    \end{axis}
+  \end{tikzpicture}
+  % TODO short caption
+  \caption{Comparison of all proposed approaches, \ML, \AML and \EVAE
+  on the 2D dataset for \easy, \moderate and \hard difficulties
+  with respect to absolute error \Abs and thresholded absolute error \AbsThr. We
+  only consider occupancy, for signed distance functions as shape representation,
+  we refer to Figure \ref{fig:experiments-2d-aml}. For \AML
+  and \EVAE we additionally compare the use of the weighted maximum likelihood
+  loss, marked by *. Refer to the text for details.}
+  \label{fig:experiments-2d-ml}
+\end{figure}

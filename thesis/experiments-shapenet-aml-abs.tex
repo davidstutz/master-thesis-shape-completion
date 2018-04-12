@@ -1,0 +1,139 @@
+\begin{figure}
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+        ybar stacked,
+        % https://tex.stackexchange.com/questions/119887/remove-the-scientific-notation-which-is-unreasonable
+        yticklabel style={
+          /pgf/number format/fixed,
+          /pgf/number format/precision=5
+        },
+        scaled y ticks=false,
+        %enlargelimits=0.15,
+        legend style={
+          at={(1.01,1)},
+          anchor=north west,
+        },
+        % https://tex.stackexchange.com/questions/48620/pgfplots-alignment-and-size-of-math-in-legend
+        legend cell align=left,
+        xtick={
+          1, 2,
+          3, 4, 5,
+          6, 7, 8,
+          9, 10, 11,
+          12
+        },
+        xticklabels={
+          \VAE, \VAE +sdf,
+          \AML\\\easy, \AML\\\moderate, \AML\\\hard,
+          \EVAE\\\easy, \EVAE\\\moderate, \EVAE\\\hard,
+          \AML +sdf\\\easy, \AML +sdf\\\moderate, \AML +sdf\\\hard,
+          Baseline
+        },
+        x tick label style={text width=1.5cm,align=right},
+        ymin=0,
+        width=12.5cm,
+        height=4cm,
+        enlarge x limits=0.05,
+        % https://tex.stackexchange.com/questions/271027/pgfplots-how-to-rotate-extra-x-tick-labels
+        x tick label style={
+          rotate=90,
+          anchor=east,
+        },
+        %bar width=8,
+      ]
+      
+      % AbsThr
+      \addplot +[bar shift=-.2cm] coordinates {
+        (1, 0.00505722)
+        (2, 0.00475067)
+        (3, 0.01667228)
+        (4, 0.0215971)
+        (5, 0.02619364)
+        %
+        (6, 0.02136223)
+        (7, 0.02775098)
+        (8, 0.03063716)
+        %
+        (9, 0.02538469)
+        (10, 0.03168048)
+        (11, 0.03483872)
+        (12, 0.010504529630079)
+      };
+      \addlegendentry{\AbsThr (occ)}
+      % Abs
+      \addplot +[bar shift=-.2cm] coordinates {
+        (1, 0.002275) % 0.00733222)
+        (2, 0.00203) % 0.00678092)
+        (3, 0.00101) % 0.01768816)
+        (4, 0.00088) % 0.02247298)
+        (5, 0.00099) % 0.02718333)
+        %
+        (6, 0.00083) % 0.02219768)
+        (7, 0.00063) % 0.02838561)
+        (8, 0.0031) % 0.03373657)
+        %
+        (9, 0.00051) % 0.02589711)
+        (10, 0.00041) % 0.0320905)
+        (11, 0.00019) % 0.0350219)
+        (12, 0.003366) % 0.013873896760899)
+      };
+      \addlegendentry{\Abs (occ)}
+      
+      % -- 
+      \resettwelvestackedplots
+      
+      % AbsThr
+      \addplot +[bar shift=+.2cm] coordinates {
+        (1, 0)
+        (2, 0.00530342)
+        (3, 0)
+        (4, 0)
+        (5, 0)
+        %
+        (6, 0)
+        (7, 0)
+        (8, 0)
+        %
+        (9, 0.02553955)
+        (10, 0.03210551)
+        (11, 0.03564795)
+        (12, 0)
+      };
+      \addlegendentry{\AbsThr (sdf)}
+      % Abs
+      \addplot +[bar shift=+.2cm] coordinates {
+        (1, 0)
+        (2, 0.0733) % 0.07860103)
+        (3, 0)
+        (4, 0)
+        (5, 0)
+        %
+        (6, 0)
+        (7, 0)
+        (8, 0)
+        %
+        (9, 0.15607) % 0.18164451)
+        (10, 0.1978) % 0.2299151)
+        (11, 0.2304) % 0.26641559)
+        (12, 0)
+      };
+      \addlegendentry{\Abs (sdf)}
+    \end{axis}
+  \end{tikzpicture}
+  
+  % TODO short caption
+  \caption{Absolute error \Abs and its thresholded variant \AbsThr,
+  \ie the absolute error on thresholded predictions,
+  comparing \AML and \EVAE with the supervised baseline and the
+  reconstruction performance of the shape prior. For the \VAE shape prior,
+  we report the reconstruction performance for training on
+  occupancy only as well as on both occupancy and signed distance functions.
+  For \AML, we also consider both modalities. For \EVAE and the supervised baseline,
+  we present results on occupancy only. For the latter, we refer to
+  Section \ref{sec:experiments-shapenet-supervised-baseline}
+  for details. In all cases, the left bar represents
+  results on occupancy; the right bar corresponds to results on signed distance
+  functions (if applicable).}
+  \label{fig:experiments-shapenet-aml-abs}
+\end{figure}

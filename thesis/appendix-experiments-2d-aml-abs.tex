@@ -1,0 +1,93 @@
+\begin{figure}
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+        ybar,
+        % https://tex.stackexchange.com/questions/119887/remove-the-scientific-notation-which-is-unreasonable
+        yticklabel style={
+          /pgf/number format/fixed,
+          /pgf/number format/precision=5
+        },
+        scaled y ticks=false,
+        %enlargelimits=0.15,
+        legend style={
+          at={(1.05,1)},
+          anchor=north west,
+        },
+        % https://tex.stackexchange.com/questions/48620/pgfplots-alignment-and-size-of-math-in-legend
+        legend cell align=left,
+        xtick={
+          1,
+          2, 3, 4, 5
+        },
+        xticklabels={
+          \VAE occ+sdf\\$Q = 5$,
+          \AML \VAE occ+sdf\\\easy, \AML \VAE occ+sdf\\\moderate, \AML \VAE occ+sdf\\\hard,
+          \AML \VAE occ+sdf\\\hard *,
+        },
+        x tick label style={text width=1.5cm,align=right},
+        ymin=0,
+        ymax=0.2,
+        width=12cm,
+        height=4cm,
+        enlarge x limits=0.1,
+        % https://tex.stackexchange.com/questions/271027/pgfplots-how-to-rotate-extra-x-tick-labels
+        x tick label style={
+          rotate=90,
+          anchor=east,
+        },
+      ]
+        
+      % Abs
+      \addplot coordinates {
+        (1, 0.00777563)
+        %
+        (2, 0.08267804)
+        (3, 0.07707906)
+        (4, 0.17130912)
+        (5, 0.09049371)
+      };
+      \addlegendentry{\Abs (occ)}
+      % AbsThr
+      \addplot coordinates {
+        (1, 0.00499229)
+        %
+        (2, 0.08116396)
+        (3, 0.07581748)
+        (4, 0.16836745)
+        (5, 0.08952775)
+      };
+      \addlegendentry{\AbsThr (occ)}
+      % Abs
+      \addplot coordinates {
+        (1, 0.07105859)
+        %
+        (2, 0.35965153)
+        (3, 0.33752751)
+        (4, 0.72618979)
+        (5, 0.39084035)
+      };
+      \addlegendentry{\Abs (sdf)}
+      % AbsThr
+      \addplot coordinates {
+        (1, 0.00514245)
+        %
+        (2, 0.08086371)
+        (3, 0.07613447)
+        (4, 0.17294705)
+        (5, 0.08968722)
+      };
+      \addlegendentry{\AbsThr (sdf)}
+    \end{axis}
+  \end{tikzpicture}
+  % TODO short caption
+  \caption{Absolute error \Abs and thresholded absolute error \AbsThr
+  for \AML on both occupancy and signed disance functions and in comparison
+  to the corresponding \VAE shape prior.
+  Results for all three difficulties \easy, \moderate and \hard are shown.
+  For \hard, we additionally show results for the weighted loss;
+  these results are marked with a star, *.
+  The results are complemented by the qualitative experiments in 
+  Figure \ref{fig:experiments-2d-sdf-aml-qual}.}
+  \label{fig:experiments-2d-aml}
+\end{figure}

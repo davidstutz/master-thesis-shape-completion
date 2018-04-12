@@ -1,0 +1,303 @@
+\chapter{Shape Prior}
+\label{ch:appendix-shape-prior}
+
+We complement the discussion of using variational auto-encoders as shape
+prior with a simple, linear alternative: probabilistic principal component analysis (PCA).
+Originally, we used probabilistic PCA to perform experiments on our 2D dataset
+as presented in Appendix \ref{ch:appendix-experiments}.
+
+\section{Probabilistic Principal Component Analysis}
+\label{sec:appendix-shape-prior-ppca}
+
+% TODO chapters in books everywhere!
+Again, we assume a flattened version $y \in \mathbb{R}^R \simeq \mathbb{R}^{H \times W \times D}$
+for simplicity. We first remind the reader of general, non-probabilistic PCA following \cite[Section~12.1]{Bishop:2006}:
+
+\begin{example}
+  \label{ex:shape-prior-pca}
+  The goal of PCA is to find a linear mapping from $y \in \mathbb{R}^R$ to
+  a lower-dimensional latent code $z \in \mathbb{R}^Q$
+  that captures as much variance as possible.
+  Considering a one-dimensional latent space $z \in \mathbb{R}$ ($Q = 1$),
+  we are looking for a vector $u \in \mathbb{R}^R$ that maximizes
+  the variance captured in $z$:
+  \begin{align}
+    \Var[z] = \Var[u^Ty].
+  \end{align}
+  Defining the mean $\mu$ as
+  \begin{align}
+    \mu = \frac{1}{M} \sum_{m = 1}^M y_m\label{eq:shape-prior-pca-mean},
+  \end{align}
+  this can be written as
+  \begin{align}
+    \mathbb{E}[u^T(y - \mu)(y - \mu)^Tu] = u^T \Sigma u\label{eq:shape-prior-pca-sigma}
+  \end{align}
+  with $\Sigma$ being the corresponding covariance matrix. As $\Sigma$ is
+  positive semi-definite, its eigenvalues are all real and positive
+  \cite[Section~1.13, Theorem~4 and Theorem~8]{MagnusNeudecker:1999}. Because
+  the length of $u$ does not matter, we require $\|u\|_2 = 1$ and can choose
+  it as the eigenvector corresponding to the largest eigenvalue $\lambda$. Then
+  \begin{align}
+    u^T \Sigma u = \lambda u^T u = \lambda,
+  \end{align}
+  and $\Var[z]$ is maximal.
+  
+  % TODO cite SVD
+  The above idea can be generalized to $Q$-dimensional latent spaces. Then
+  the linear mapping $U \in \mathbb{R}^{R \times Q}$ is found by computing
+  the eigenvalue decomposition
+  \cite[Section~1.14, Theorem~13]{MagnusNeudecker:1999} of~$\Sigma$:
+  \begin{align}
+    \Sigma = V \Lambda V^T\label{eq:shape-prior-lambda}
+  \end{align}
+  where $\Lambda \in \mathbb{R}^{R \times R}$ is a diagonal matrix containing
+  the eigenvalues -- sorted from largest to smallest eigenvalue -- and
+  $V \in \mathbb{R}^{R \times R}$ is an orthogonal matrix containing
+  the corresponding eigenvectors. Taking $U$ as the first $Q$ eigenvectors
+  (corresponding to the $Q$ largest eigenvalues), \ie
+  \begin{align}
+    U = V_Q := \left[\begin{matrix}v_1 &\ldots& v_Q\end{matrix}\right],
+  \end{align}
+  yields the linear mapping maximizing the variance and thereby
+  also minimizing the reconstruction error \cite[Section~12.1]{Bishop:2006}.
+\end{example}
+
+% TODO eigenvalues and singular values
+
+The outline from the above example can be stated more precise in terms of
+an encoding transformation and a decoding transformation -- 
+which will correspond to the recognition model and generative model in
+probabilistic PCA:
+
+\begin{definition}
+  Given data $\mathcal{Y} = \{y_1, \ldots, y_M\} \subseteq \mathbb{R}^R$ with mean
+  $\mu$ and covariance matrix $\Sigma$ as defined according to
+  Equations \eqref{eq:shape-prior-pca-mean} and \eqref{eq:shape-prior-pca-sigma},
+  we define
+  \begin{align}
+    U = V_Q := \left[\begin{matrix}v_1 &\ldots& v_Q\end{matrix}\right] \in \mathbb{R}^{R \times Q}
+  \end{align}
+  using the first $Q$ eigenvectors $v_1,\ldots, v_Q$ obtained
+  from the eigenvalue decomposition $\Sigma = V \Lambda V^T$.
+  Then, PCA defines an encoding transformation
+  \begin{align}
+    z = U^T (y - \mu)
+  \end{align}
+  and a decoding transformation
+  \begin{align}
+    \tilde{y} = Uz + \mu.
+  \end{align}
+\end{definition}
+
+The problem with general PCA is that no generative model is included.
+Probabilistic PCA wraps a probabilistic interpretation around
+the linear encoding and decoding transformations. Following
+\cite[Section~12.2]{Bishop:2006} and \cite{TippingBishop:1999}, we still
+assume a linear model
+\begin{align}
+  y = Uz + \mu + \epsilon
+\end{align}
+with $\epsilon \sim \mathcal{N}(\epsilon;0,\sigma^2I_R)$ and $U \in \mathbb{R}^{R \times Q}$.
+With a unit Gaussian prior $p(z) = \mathcal{N}(z;0,I_Q)$, this implicitly
+defines a generative model: sample $z \sim p(z)$ and
+\begin{align}
+  y \sim p(y | z) = \mathcal{N}(y;\mu, Uz + \mu, \sigma^2I_R).\label{eq:shape-prior-ppca-decoding}
+\end{align}
+Given the generative model, we also need the recognition model, \ie
+the posterior $p(z | y)$, representing the encoding transformation.
+This can be easily derived using the following
+result \cite[Section~2.3]{Bishop:2006}:
+
+\begin{lemma}
+  Given Gaussian distributions $p(z)$ and $p(y | z)$ with parameters
+  \begin{align}
+    p(z) &= \mathcal{N}(z; 0, I)\\
+    p(y | z) &= \mathcal{N}(y; Uz + \mu, \sigma^2I)
+  \end{align}
+  then the posterior $p(z | y)$ is given as
+  \begin{align}
+    p(z | y) = \mathcal{N}(z; S^{-1} U^T(y - \mu), \sigma^{-2} S^{-1})
+  \end{align}
+  with $S = U^T U + \sigma^2I_Q$.
+\end{lemma}
+
+\begin{proof}
+  See \cite[Section~2.3]{Bishop:2006}.
+\end{proof}
+
+% TODO cite
+Determining the parameters $U$, $\mu$ and $\sigma^2$ would involve
+maximizing the likelihood
+\begin{align}
+  p(y) = \int p(y|z)p(z) dz.
+\end{align}
+As all involved distributions are Gaussians, the marginalization is again
+a Gaussian \cite[Section~2.3]{Bishop:2006} with mean
+\begin{align}
+  \mathbb{E}[y] = \mathbb{E}[Uz + \mu + \epsilon] = \mu
+  \label{eq:shape-prior-ppca-mean}
+\end{align}
+and covariance matrix
+\begin{align}
+  \Cov[y] &= \Cov[Uz + \mu + \epsilon, Uz + \mu + \epsilon]\\
+  &= \Cov[Uz + \epsilon, Uz + \epsilon]\\
+  &= \mathbb{E}[(Uz + \epsilon)(Uz + \epsilon)^T]\\
+  &= \mathbb{E}[Uzz^TU^T] + \mathbb{E}[\epsilon \epsilon^T] = U U^T + \sigma^2I_R =: S
+  \label{eq:shape-prior-ppca-covariance}
+\end{align}
+Here, we used that $p(z)$ is a standard Gaussian with zero mean and unit variance and $p(y | z)$
+takes the form in Equation \eqref{eq:shape-prior-ppca-decoding}.
+Maximizing the likelihood is equivalent to minimizing the negative log-likelihood:
+\begin{align}
+  \mathcal{L}(U, \mu, \sigma^2) &= - \sum_{m = 1} ^M \ln \mathcal{N}(y_m | \mu, UU^T + \sigma^2I_R)\\
+  &= \const + \frac{M}{2} \ln |S| - \frac{1}{2} \sum_{m = 1}^M (y_m - \mu)^T S^{-1} (y_m - \mu).
+\end{align}
+Considering the gradient with respect to $\mu$ and solving for
+$\nabla_\mu \mathcal{L} = 0$ yields:
+\begin{align}
+  \nabla_\mu \mathcal{L} &= \sum_{m = 1}^M (y_m - \mu) S^{-1} \overset{!}{=} 0
+  \quad\Leftrightarrow\quad \mu = \frac{1}{N} \sum_{m = 1}^M y_m.
+\end{align}
+Regarding $\Sigma$, it is easier to first rewrite the log-likelihood
+\begin{align}
+  \mathcal{L}(U, \mu, \sigma^2) =& \const + \frac{M}{2} \ln |S| + \frac{1}{2}\Tr\left(\sum_{m = 1}^M (y_m - \mu)(y_m - \mu)^T S^{-1}\right)\\
+  =& \const + \frac{M}{2} \left(\ln |S| + \Tr(\Sigma S^{-1})\right)
+\end{align}
+where $\Sigma$ is the data covariance matrix:
+\begin{align}
+  \Sigma := \frac{1}{M} \sum_{m = 1}^M (y_m - \mu)(y_m - \mu)^T.
+\end{align}
+Taking the derivative with respect to $\Sigma$ is more involved
+and requires some well-known matrix derivative identities \cite[Section~8]{MagnusNeudecker:1999}:
+% http://planetmath.org/derivativeofinversematrix
+% https://web.stanford.edu/~jduchi/projects/matrix_prop.pdf
+% http://www.atmos.washington.edu/~dennis/MatrixCalculus.pdf
+% http://www2.imm.dtu.dk/pubdb/views/edoc_download.php/3274/pdf/imm3274.pdf
+
+\begin{lemma}
+  Let $S$, $\Sigma$ be square, symmetric matrices; then it holds
+  \begin{align}
+    \frac{\partial \ln |S|}{\partial S} &= S^{-T} = S^{-1}\\
+    \frac{\partial \Tr(\Sigma S^{-1})}{\partial S} &= - (S^{-1} \Sigma S^{-1})^T = - S^{-1} \Sigma S^{-1}
+  \end{align}
+\end{lemma}
+
+\begin{proof}
+  A proof of the first identity can be found in \cite[Section~8.3, Theorem~1]{MagnusNeudecker:1999}; the second identity follows from \cite[Section~8.2; Section~8.4, Theorem~3]{MagnusNeudecker:1999}.
+\end{proof}
+
+% TODO chain rule
+% TODO introduce diag somewhere
+With the above lemma we can now use the chain rule to derive
+\begin{align}
+  \nabla_{S} \mathcal{L} = M\left[S^{-1} U - S^{-1} \Sigma S^{-1} U\right]\overset{!}{=} 0
+\end{align}
+which leads to
+\begin{align}
+  U = \Sigma S^{-1} U\label{eq:shape-prior-ppca-likelihood}.
+\end{align}
+At this point, there are three different cases. The first, $U = 0$ is trivial
+and not informative. The second, $S = \Sigma$, implies that the observed
+covariance is exact which is undesirable in the presence of additive noise
+\cite{TippingBishop:1999}. Therefore, the third case is the most interesting one:
+$U \neq 0$ and $S \neq \Sigma$. Considering the singular value decomposition
+\begin{align}
+  U = V \Lambda V'^T
+\end{align}
+(note that $\Lambda$ holds the singular values here, in contrast to
+Equation \eqref{eq:shape-prior-lambda}), using $S = UU^T + \sigma^2 I_R$
+and substituting into 
+Equation \eqref{eq:shape-prior-ppca-likelihood}:
+\begin{align}
+  &V \Lambda V'^T = \Sigma (V \Lambda V'^T (V \Lambda V'^T)^T + \sigma^2I)^{-1} V \Lambda V'^T\\
+  \Leftrightarrow\quad& V \Lambda = \Sigma (V \Lambda^2 V^T + \sigma^2 I)^{-1} V \Lambda\\
+  \Leftrightarrow\quad& V (\Lambda^2 + \sigma^2I) = \Sigma .
+\end{align}
+From the last identity, it follows that with $\Lambda = \diag(\lambda_i)$
+and for a specific $\lambda_i \neq 0$ it needs to hold
+\begin{align}
+  \Sigma v_i = (\sigma^2 + \lambda_i^2)v_i
+\end{align}
+meaning that $v_i$ is an eigenvector of $\Sigma$, \ie
+the data covariance matrix, with corresponding eigenvalue
+$(\sigma^2 + \lambda_i^2)^{\frac{1}{2}}$.
+A solution for $U$ might therefore be
+\begin{align}
+  U = V_Q (\Lambda_Q - \sigma^2I_Q)^\frac{1}{2}.
+\end{align}
+% TODO more characters!!!
+Note that this solution is not unique; for any orthogonal matrix $U'$,
+$UU'$ is a solution, as well. Now only $\sigma^2$ is left to be determined.
+However, as we merely approximate $\sigma^2$ in practice and it is less
+relevant to understand the general idea of probabilistic PCA, we refer
+to \cite{TippingBishop:1999}. Overall, the derivation leads to:
+
+\begin{definition}
+  \label{def:shape-prior-ppca}
+  Given data $Y = \{y_1,\ldots,y_M\} \subseteq \mathbb{R}^R$ with mean $\mu$ and
+  covariance matrix $\Sigma$, we define $U = V_Q (\Lambda_Q - \sigma^2 I_Q)^{\frac{1}{2}}$
+  with $\Sigma = V \Lambda V^T$ being the eigenvalue decomposition of $\Sigma$,
+  and
+  \begin{align}
+    \sigma^2 = \frac{1}{R - Q} \sum_{i = Q + 1}^R \lambda_i
+  \end{align}
+  where
+  $\lambda_1, \ldots, \lambda_R$ are the eigenvalues of $\Sigma$ in decreasing
+  order. Then, probabilistic PCA defines as recognition model
+  \begin{align}
+    p(z|y) = \mathcal{N}(z;S^{-1}U^T(y - \mu), \sigma^{-2}S^{-1})
+  \end{align}
+  with $S = UU^T + \sigma^2 I_R$ and as generative model
+  \begin{align}
+    p(z) &= \mathcal{N}(z;0,I_Q)\\
+    p(y|z) &= \mathcal{N}(y;Uz + \mu, S).
+  \end{align}
+\end{definition}
+
+\subsection{Practical Considerations}
+
+Due to a simple result from linear algebra
+non-probabilistic PCA as introduced in Example \ref{ex:shape-prior-pca}
+can be implemented in tow different ways; following \cite[Section~1.16]{MagnusNeudecker:1999}:
+
+\begin{lemma}
+  \label{lem:shape-prior-ppca}
+  Let
+  \begin{align}
+    Y = \left[\begin{matrix}y_1 &\ldots& y_M\end{matrix}\right] \in \mathbb{R}^{R \times M}
+  \end{align}
+  be the data matrix, $\mu$ the corresponding mean and $\Sigma$ the covariance
+  matrix. Then, $\Sigma = \overline{Y}\overline{Y}^T$ where $\overline{Y}$ is
+  the centered data matrix
+  \begin{align}
+    \overline{Y} = \left[\begin{matrix}y_1 - \mu &\ldots& y_M - \mu\end{matrix}\right]
+  \end{align}
+  Then, the singular value decomposition of $\overline{Y} = V \Lambda V'^T$
+  leads to the eigenvalue decomposition
+  \begin{align}
+    \Sigma = \overline{Y}\overline{Y}^T = V \Lambda^2 V^T,
+  \end{align}
+  meaning that the singular values of $\overline{Y}$ are the square roots of the
+  eigenvalues of~$\Sigma$.
+\end{lemma}
+
+\begin{proof}
+  The result follows directly from
+  \begin{align}
+    \Sigma = \overline{Y}\overline{Y}^T = V\Lambda V'^T (V\Lambda V'^T) = V \Lambda^2 V^T.
+  \end{align}
+  More details can be found in \cite[Section~1.16]{MagnusNeudecker:1999}.
+\end{proof}
+
+The lemma implies that we can use either the eigenvalue decomposition
+of the covariance matrix $\Sigma = V \Lambda V^T$, or the singular value
+decomposition of the centered data matrix $\overline{Y} = V \Lambda^2 V'^T$.
+Usually, the latter approach is faster
+and more memory efficient as it avoids explicitly computing the
+covariance matrix. For non-probabilistic PCA, only the first $Q$ eigenvalues
+and eigenvectors are required; efficient algorithms for this case are available,
+\eg see \cite{GolubVanLoan:2013}. For probabilistic PCA, all eigenvalues are
+required in order to compute $\sigma^2$.
+In practice, for large data matrices (\eg $R$ and $M$ in the order of ten thousands),
+we compute the $Q' > Q$ largest eigenvalues. Pick the $Q$ largest eigenvalues
+and eigenvectors to form $U$ and the remaining to approximate $\sigma^2$.
