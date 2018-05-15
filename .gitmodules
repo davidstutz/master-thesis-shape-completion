@@ -1,0 +1,24 @@
+[submodule "code/daml-shape-completion"]
+	path = code/daml-shape-completion
+	url = https://github.com/davidstutz/daml-shape-completion
+[submodule "code/shape-completion-benchmark"]
+	path = code/shape-completion-benchmark
+	url = https://github.com/davidstutz/shape-completion-benchmark
+[submodule "code/mesh-evaluation"]
+	path = code/mesh-evaluation
+	url = https://github.com/davidstutz/mesh-evaluation
+[submodule "code/mesh-voxelization"]
+	path = code/mesh-voxelization
+	url = https://github.com/davidstutz/mesh-voxelization
+[submodule "code/probabilistic-pca"]
+	path = code/probabilistic-pca
+	url = https://github.com/davidstutz/probabilistic-pca
+[submodule "code/pointnet-auto-encoder"]
+	path = code/pointnet-auto-encoder
+	url = https://github.com/davidstutz/pointnet-auto-encoder
+[submodule "code/torch-volumetric-nnup"]
+	path = code/torch-volumetric-nnup
+	url = https://github.com/davidstutz/torch-volumetric-nnup
+[submodule "code/bpy-visualization-utils"]
+	path = code/bpy-visualization-utils
+	url = https://github.com/davidstutz/bpy-visualization-utils
